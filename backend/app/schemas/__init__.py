@@ -8,7 +8,9 @@ from app.schemas.application_event import (
     ApplicationEventRead,
     ApplicationEventUpdate,
 )
+from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.company import CompanyCreate, CompanyRead, CompanyUpdate
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 
 __all__ = [
     "ApplicationCreate",
@@ -20,4 +22,9 @@ __all__ = [
     "CompanyCreate",
     "CompanyRead",
     "CompanyUpdate",
+    "LoginRequest",
+    "TokenResponse",
+    "UserCreate",
+    "UserRead",
+    "UserUpdate",
 ]
