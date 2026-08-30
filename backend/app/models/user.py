@@ -9,6 +9,7 @@ from app.db.base import Base
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.application import Application
     from app.models.company import Company
 
 
@@ -34,6 +35,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     companies: Mapped[list[Company]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    applications: Mapped[list[Application]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,

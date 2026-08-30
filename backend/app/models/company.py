@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.application import Application
     from app.models.user import User
 
 
@@ -45,4 +46,7 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     user: Mapped[User] = relationship(
         back_populates="companies",
+    )
+    applications: Mapped[list[Application]] = relationship(
+        back_populates="company",
     )
