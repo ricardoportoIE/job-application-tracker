@@ -22,6 +22,7 @@ from app.models.enums import ApplicationStatus, JobSource, WorkModel
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.application_event import ApplicationEvent
     from app.models.company import Company
     from app.models.user import User
 
@@ -156,4 +157,9 @@ class Application(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     company: Mapped[Company] = relationship(
         back_populates="applications",
+    )
+    events: Mapped[list[ApplicationEvent]] = relationship(
+        back_populates="application",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
