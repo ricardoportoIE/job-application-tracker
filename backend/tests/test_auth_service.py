@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from app.core.security import decode_access_token
 from app.db.session import SessionLocal
 from app.models.user import User
 from app.schemas.user import UserCreate
@@ -134,6 +135,101 @@ def test_authenticate_rejects_inactive_user(
 
     with pytest.raises(InactiveUserError):
         AuthService.authenticate(
+            db_session,
+            email,
+            password,
+        )
+
+
+def test_login_returns_access_token(
+    db_session: Session,
+) -> None:
+    email = make_test_email()
+    password = "secure-password-123"
+
+    UserService.create(
+        db_session,
+        UserCreate(
+            email=email,
+            password=password,
+        ),
+    )
+
+    result = AuthService.login(
+        db_session,
+        email,
+        password,
+    )
+
+    assert result.access_token
+    assert result.token_type == "bearer"
+
+
+def test_login_access_token_subject_is_user_id(
+    db_session: Session,
+) -> None:
+    email = make_test_email()
+    password = "secure-password-123"
+
+    user = UserService.create(
+        db_session,
+        UserCreate(
+            email=email,
+            password=password,
+        ),
+    )
+
+    result = AuthService.login(
+        db_session,
+        email,
+        password,
+    )
+
+    subject = decode_access_token(result.access_token)
+
+    assert subject == str(user.id)
+
+
+def test_login_rejects_invalid_credentials(
+    db_session: Session,
+) -> None:
+    email = make_test_email()
+
+    UserService.create(
+        db_session,
+        UserCreate(
+            email=email,
+            password="correct-password",
+        ),
+    )
+
+    with pytest.raises(InvalidCredentialsError):
+        AuthService.login(
+            db_session,
+            email,
+            "wrong-password",
+        )
+
+
+def test_login_rejects_inactive_user(
+    db_session: Session,
+) -> None:
+    email = make_test_email()
+    password = "secure-password-123"
+
+    user = UserService.create(
+        db_session,
+        UserCreate(
+            email=email,
+            password=password,
+        ),
+    )
+
+    user.is_active = False
+    db_session.commit()
+
+    with pytest.raises(InactiveUserError):
+        AuthService.login(
             db_session,
             email,
             password,

@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
 
-from app.core.security import verify_password
+from app.core.security import create_access_token, verify_password
 from app.models.user import User
+from app.schemas.auth import TokenResponse
 from app.services.user import UserService
 
 
@@ -38,3 +39,24 @@ class AuthService:
             raise InactiveUserError
 
         return user
+
+    @classmethod
+    def login(
+        cls,
+        session: Session,
+        email: str,
+        password: str,
+    ) -> TokenResponse:
+        user = cls.authenticate(
+            session,
+            email,
+            password,
+        )
+
+        access_token = create_access_token(
+            subject=str(user.id),
+        )
+
+        return TokenResponse(
+            access_token=access_token,
+        )
