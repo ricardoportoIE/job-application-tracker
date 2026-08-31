@@ -1,11 +1,12 @@
 from collections.abc import Generator
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
-from app.core.security import decode_access_token
+from app.core.security import create_access_token, decode_access_token
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.user import User
@@ -290,3 +291,138 @@ def test_login_rejects_extra_fields() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_get_me_returns_authenticated_user() -> None:
+    email = make_test_email()
+    password = "secure-password-123"
+
+    with SessionLocal() as session:
+        user = UserService.create(
+            session,
+            UserCreate(
+                email=email,
+                password=password,
+            ),
+        )
+        user_id = user.id
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    token = login_response.json()["access_token"]
+
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": f"Bearer {token}",
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["id"] == str(user_id)
+    assert body["email"] == email
+    assert body["is_active"] is True
+    assert "password" not in body
+    assert "password_hash" not in body
+
+
+def test_get_me_rejects_missing_token() -> None:
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Could not validate credentials",
+    }
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_get_me_rejects_malformed_token() -> None:
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": "Bearer not-a-valid-jwt",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Could not validate credentials",
+    }
+
+
+def test_get_me_rejects_expired_token() -> None:
+    token = create_access_token(
+        subject=str(uuid4()),
+        expires_delta=timedelta(seconds=-1),
+    )
+
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": f"Bearer {token}",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Could not validate credentials",
+    }
+
+
+def test_get_me_rejects_nonexistent_user() -> None:
+    token = create_access_token(
+        subject=str(uuid4()),
+    )
+
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": f"Bearer {token}",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Could not validate credentials",
+    }
+
+
+def test_get_me_rejects_inactive_user() -> None:
+    email = make_test_email()
+
+    with SessionLocal() as session:
+        user = UserService.create(
+            session,
+            UserCreate(
+                email=email,
+                password="secure-password-123",
+            ),
+        )
+
+        user.is_active = False
+        session.commit()
+
+        token = create_access_token(
+            subject=str(user.id),
+        )
+
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": f"Bearer {token}",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Inactive user",
+    }
