@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class CompanyCreate(BaseModel):
@@ -20,6 +21,13 @@ class CompanyUpdate(BaseModel):
     website: str | None = Field(default=None, max_length=2048)
     industry: str | None = Field(default=None, max_length=120)
     location: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def reject_null_name(self) -> Self:
+        if "name" in self.model_fields_set and self.name is None:
+            raise ValueError("name cannot be null")
+
+        return self
 
 
 class CompanyRead(BaseModel):
