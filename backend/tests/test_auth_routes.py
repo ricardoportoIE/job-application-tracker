@@ -5,9 +5,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
+from app.core.security import decode_access_token
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.user import User
+from app.schemas.user import UserCreate
+from app.services.user import UserService
 
 TEST_EMAIL_PREFIX = "auth-route-test-"
 
@@ -140,6 +143,149 @@ def test_register_user_rejects_extra_fields() -> None:
             "email": make_test_email(),
             "password": "secure-password-123",
             "is_active": False,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_login_returns_access_token() -> None:
+    email = make_test_email()
+    password = "secure-password-123"
+
+    with SessionLocal() as session:
+        user = UserService.create(
+            session,
+            UserCreate(
+                email=email,
+                password=password,
+            ),
+        )
+        user_id = user.id
+
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["access_token"]
+    assert body["token_type"] == "bearer"
+
+    subject = decode_access_token(body["access_token"])
+
+    assert subject == str(user_id)
+
+
+def test_login_rejects_incorrect_password() -> None:
+    email = make_test_email()
+
+    with SessionLocal() as session:
+        UserService.create(
+            session,
+            UserCreate(
+                email=email,
+                password="correct-password",
+            ),
+        )
+
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": "wrong-password",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Invalid credentials",
+    }
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_login_rejects_nonexistent_user() -> None:
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": make_test_email(),
+            "password": "secure-password-123",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Invalid credentials",
+    }
+
+
+def test_login_rejects_inactive_user() -> None:
+    email = make_test_email()
+    password = "secure-password-123"
+
+    with SessionLocal() as session:
+        user = UserService.create(
+            session,
+            UserCreate(
+                email=email,
+                password=password,
+            ),
+        )
+
+        user.is_active = False
+        session.commit()
+
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Inactive user",
+    }
+
+
+def test_login_rejects_invalid_email() -> None:
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "not-an-email",
+            "password": "secure-password-123",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_login_rejects_empty_password() -> None:
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": make_test_email(),
+            "password": "",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_login_rejects_extra_fields() -> None:
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": make_test_email(),
+            "password": "secure-password-123",
+            "remember_me": True,
         },
     )
 

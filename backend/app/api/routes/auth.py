@@ -5,7 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.user import UserCreate, UserRead
+from app.services.auth import (
+    AuthService,
+    InactiveUserError,
+    InvalidCredentialsError,
+)
 from app.services.user import UserAlreadyExistsError, UserService
 
 router = APIRouter(
@@ -32,4 +38,32 @@ def register_user(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
+        ) from exc
+
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+def login(
+    data: LoginRequest,
+    session: Annotated[Session, Depends(get_db)],
+) -> TokenResponse:
+    try:
+        return AuthService.login(
+            session,
+            str(data.email),
+            data.password,
+        )
+    except InvalidCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    except InactiveUserError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
         ) from exc
