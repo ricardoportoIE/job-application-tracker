@@ -37,7 +37,7 @@ def test_register_user_returns_created_user() -> None:
     email = make_test_email()
 
     response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": email,
             "password": "secure-password-123",
@@ -57,7 +57,7 @@ def test_register_user_returns_created_user() -> None:
 
 def test_register_user_does_not_expose_password() -> None:
     response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": make_test_email(),
             "password": "secure-password-123",
@@ -76,7 +76,7 @@ def test_register_user_normalizes_email() -> None:
     email = make_test_email()
 
     response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": email.upper(),
             "password": "secure-password-123",
@@ -91,7 +91,7 @@ def test_register_user_rejects_duplicate_email() -> None:
     email = make_test_email()
 
     first_response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": email,
             "password": "secure-password-123",
@@ -99,7 +99,7 @@ def test_register_user_rejects_duplicate_email() -> None:
     )
 
     second_response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": email.upper(),
             "password": "another-secure-password",
@@ -115,7 +115,7 @@ def test_register_user_rejects_duplicate_email() -> None:
 
 def test_register_user_rejects_invalid_email() -> None:
     response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": "not-an-email",
             "password": "secure-password-123",
@@ -127,7 +127,7 @@ def test_register_user_rejects_invalid_email() -> None:
 
 def test_register_user_rejects_short_password() -> None:
     response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": make_test_email(),
             "password": "short",
@@ -139,7 +139,7 @@ def test_register_user_rejects_short_password() -> None:
 
 def test_register_user_rejects_extra_fields() -> None:
     response = client.post(
-        "/auth/register",
+        "/api/v1/auth/register",
         json={
             "email": make_test_email(),
             "password": "secure-password-123",
@@ -165,7 +165,7 @@ def test_login_returns_access_token() -> None:
         user_id = user.id
 
     response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": email,
             "password": password,
@@ -197,7 +197,7 @@ def test_login_rejects_incorrect_password() -> None:
         )
 
     response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": email,
             "password": "wrong-password",
@@ -213,7 +213,7 @@ def test_login_rejects_incorrect_password() -> None:
 
 def test_login_rejects_nonexistent_user() -> None:
     response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": make_test_email(),
             "password": "secure-password-123",
@@ -243,7 +243,7 @@ def test_login_rejects_inactive_user() -> None:
         session.commit()
 
     response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": email,
             "password": password,
@@ -258,7 +258,7 @@ def test_login_rejects_inactive_user() -> None:
 
 def test_login_rejects_invalid_email() -> None:
     response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": "not-an-email",
             "password": "secure-password-123",
@@ -270,7 +270,7 @@ def test_login_rejects_invalid_email() -> None:
 
 def test_login_rejects_empty_password() -> None:
     response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": make_test_email(),
             "password": "",
@@ -282,7 +282,7 @@ def test_login_rejects_empty_password() -> None:
 
 def test_login_rejects_extra_fields() -> None:
     response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": make_test_email(),
             "password": "secure-password-123",
@@ -308,7 +308,7 @@ def test_get_me_returns_authenticated_user() -> None:
         user_id = user.id
 
     login_response = client.post(
-        "/auth/login",
+        "/api/v1/auth/login",
         json={
             "email": email,
             "password": password,
@@ -318,7 +318,7 @@ def test_get_me_returns_authenticated_user() -> None:
     token = login_response.json()["access_token"]
 
     response = client.get(
-        "/auth/me",
+        "/api/v1/auth/me",
         headers={
             "Authorization": f"Bearer {token}",
         },
@@ -336,7 +336,7 @@ def test_get_me_returns_authenticated_user() -> None:
 
 
 def test_get_me_rejects_missing_token() -> None:
-    response = client.get("/auth/me")
+    response = client.get("/api/v1/auth/me")
 
     assert response.status_code == 401
     assert response.json() == {
@@ -347,7 +347,7 @@ def test_get_me_rejects_missing_token() -> None:
 
 def test_get_me_rejects_malformed_token() -> None:
     response = client.get(
-        "/auth/me",
+        "/api/v1/auth/me",
         headers={
             "Authorization": "Bearer not-a-valid-jwt",
         },
@@ -366,7 +366,7 @@ def test_get_me_rejects_expired_token() -> None:
     )
 
     response = client.get(
-        "/auth/me",
+        "/api/v1/auth/me",
         headers={
             "Authorization": f"Bearer {token}",
         },
@@ -384,7 +384,7 @@ def test_get_me_rejects_nonexistent_user() -> None:
     )
 
     response = client.get(
-        "/auth/me",
+        "/api/v1/auth/me",
         headers={
             "Authorization": f"Bearer {token}",
         },
@@ -416,7 +416,7 @@ def test_get_me_rejects_inactive_user() -> None:
         )
 
     response = client.get(
-        "/auth/me",
+        "/api/v1/auth/me",
         headers={
             "Authorization": f"Bearer {token}",
         },

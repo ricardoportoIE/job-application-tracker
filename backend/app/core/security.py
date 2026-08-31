@@ -54,6 +54,9 @@ def decode_access_token(token: str) -> str:
             token,
             settings.jwt_secret_key.get_secret_value(),
             algorithms=[settings.jwt_algorithm],
+            options={
+                "require": ["sub", "iat", "exp"],
+            },
         )
     except jwt.InvalidTokenError as exc:
         raise InvalidAccessTokenError from exc

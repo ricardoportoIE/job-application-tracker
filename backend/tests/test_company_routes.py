@@ -98,7 +98,7 @@ def test_create_company_returns_created_company() -> None:
     user_id, token = create_authenticated_user()
 
     response = client.post(
-        "/companies",
+        "/api/v1/companies",
         headers=auth_headers(token),
         json={
             "name": "Stripe",
@@ -124,7 +124,7 @@ def test_create_company_returns_created_company() -> None:
 
 def test_create_company_requires_authentication() -> None:
     response = client.post(
-        "/companies",
+        "/api/v1/companies",
         json={
             "name": "Stripe",
         },
@@ -140,7 +140,7 @@ def test_create_company_rejects_invalid_name() -> None:
     _, token = create_authenticated_user()
 
     response = client.post(
-        "/companies",
+        "/api/v1/companies",
         headers=auth_headers(token),
         json={
             "name": "   ",
@@ -170,7 +170,7 @@ def test_list_companies_returns_only_current_users_companies() -> None:
     )
 
     response = client.get(
-        "/companies",
+        "/api/v1/companies",
         headers=auth_headers(first_token),
     )
 
@@ -196,7 +196,7 @@ def test_get_company_returns_owned_company() -> None:
     )
 
     response = client.get(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(token),
     )
 
@@ -214,7 +214,7 @@ def test_get_company_returns_404_for_nonexistent_company() -> None:
     _, token = create_authenticated_user()
 
     response = client.get(
-        f"/companies/{uuid4()}",
+        f"/api/v1/companies/{uuid4()}",
         headers=auth_headers(token),
     )
 
@@ -234,7 +234,7 @@ def test_get_company_does_not_expose_another_users_company() -> None:
     )
 
     response = client.get(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(other_user_token),
     )
 
@@ -254,7 +254,7 @@ def test_update_company_changes_only_provided_fields() -> None:
     )
 
     response = client.patch(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(token),
         json={
             "name": "Stripe Ireland",
@@ -281,7 +281,7 @@ def test_update_company_allows_clearing_optional_field() -> None:
     )
 
     response = client.patch(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(token),
         json={
             "website": None,
@@ -301,7 +301,7 @@ def test_update_company_rejects_null_name() -> None:
     )
 
     response = client.patch(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(token),
         json={
             "name": None,
@@ -321,7 +321,7 @@ def test_update_company_does_not_modify_another_users_company() -> None:
     )
 
     response = client.patch(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(other_user_token),
         json={
             "name": "Not Allowed",
@@ -352,7 +352,7 @@ def test_delete_company_removes_owned_company() -> None:
     )
 
     response = client.delete(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(token),
     )
 
@@ -373,7 +373,7 @@ def test_delete_company_does_not_delete_another_users_company() -> None:
     )
 
     response = client.delete(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(other_user_token),
     )
 
@@ -407,7 +407,7 @@ def test_delete_company_with_application_returns_conflict() -> None:
         application_id = application.id
 
     response = client.delete(
-        f"/companies/{company_id}",
+        f"/api/v1/companies/{company_id}",
         headers=auth_headers(token),
     )
 
@@ -425,7 +425,7 @@ def test_company_route_rejects_invalid_company_uuid() -> None:
     _, token = create_authenticated_user()
 
     response = client.get(
-        "/companies/not-a-uuid",
+        "/api/v1/companies/not-a-uuid",
         headers=auth_headers(token),
     )
 

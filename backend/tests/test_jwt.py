@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
+
 from app.core.config import settings
 from app.core.security import (
     InvalidAccessTokenError,
@@ -111,6 +112,38 @@ def test_decode_access_token_rejects_missing_subject() -> None:
 
 def test_decode_access_token_rejects_empty_subject() -> None:
     token = create_access_token("")
+
+    with pytest.raises(InvalidAccessTokenError):
+        decode_access_token(token)
+
+
+def test_decode_access_token_rejects_missing_issued_at() -> None:
+    now = datetime.now(UTC)
+
+    token = jwt.encode(
+        {
+            "sub": "user-123",
+            "exp": now + timedelta(minutes=5),
+        },
+        settings.jwt_secret_key.get_secret_value(),
+        algorithm=settings.jwt_algorithm,
+    )
+
+    with pytest.raises(InvalidAccessTokenError):
+        decode_access_token(token)
+
+
+def test_decode_access_token_rejects_missing_expiration() -> None:
+    now = datetime.now(UTC)
+
+    token = jwt.encode(
+        {
+            "sub": "user-123",
+            "iat": now,
+        },
+        settings.jwt_secret_key.get_secret_value(),
+        algorithm=settings.jwt_algorithm,
+    )
 
     with pytest.raises(InvalidAccessTokenError):
         decode_access_token(token)

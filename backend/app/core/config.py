@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     environment: str = "development"
 
-    database_url: str = ""
+    database_url: str
+    test_database_url: str | None = None
 
     jwt_secret_key: SecretStr
     jwt_algorithm: str = "HS256"
