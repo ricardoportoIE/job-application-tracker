@@ -3,6 +3,13 @@ from app.services.application import (
     ApplicationService,
     InvalidSalaryRangeError,
 )
+from app.services.application_event import (
+    ApplicationEventImmutableError,
+    ApplicationEventNotFoundError,
+    ApplicationEventService,
+    ApplicationEventStatusFieldsNotAllowedError,
+    ApplicationEventTypeNotAllowedError,
+)
 from app.services.auth import (
     AuthService,
     InactiveUserError,
@@ -16,6 +23,11 @@ from app.services.company import (
 from app.services.user import UserAlreadyExistsError, UserService
 
 __all__ = [
+    "ApplicationEventImmutableError",
+    "ApplicationEventNotFoundError",
+    "ApplicationEventService",
+    "ApplicationEventStatusFieldsNotAllowedError",
+    "ApplicationEventTypeNotAllowedError",
     "ApplicationNotFoundError",
     "ApplicationService",
     "AuthService",
