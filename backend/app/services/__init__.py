@@ -1,3 +1,8 @@
+from app.services.application import (
+    ApplicationNotFoundError,
+    ApplicationService,
+    InvalidSalaryRangeError,
+)
 from app.services.auth import (
     AuthService,
     InactiveUserError,
@@ -11,12 +16,15 @@ from app.services.company import (
 from app.services.user import UserAlreadyExistsError, UserService
 
 __all__ = [
+    "ApplicationNotFoundError",
+    "ApplicationService",
     "AuthService",
     "CompanyInUseError",
     "CompanyNotFoundError",
     "CompanyService",
     "InactiveUserError",
     "InvalidCredentialsError",
+    "InvalidSalaryRangeError",
     "UserAlreadyExistsError",
     "UserService",
 ]
