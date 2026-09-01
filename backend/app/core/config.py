@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[3]
@@ -23,6 +23,12 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    cors_allowed_origins: list[str] = Field(
+        default_factory=list,
+    )
+
+    cors_allow_credentials: bool = True
 
 
 settings = Settings()  # type: ignore[call-arg]
