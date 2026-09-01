@@ -8,6 +8,10 @@ import pytest
 
 from app.core.config import settings
 from app.core.logging import JsonFormatter, configure_logging
+from app.core.request_context import (
+    reset_request_id,
+    set_request_id,
+)
 
 
 @pytest.fixture
@@ -77,7 +81,7 @@ def test_json_formatter_outputs_structured_log() -> None:
     assert payload["environment"] == settings.environment
     assert "timestamp" in payload
     assert "exception" not in payload
-
+    assert "request_id" not in payload
     timestamp = datetime.fromisoformat(payload["timestamp"])
 
     assert timestamp.tzinfo is not None
@@ -179,3 +183,29 @@ def test_configure_logging_configures_uvicorn_loggers(
             logger.handlers[0].formatter,
             JsonFormatter,
         )
+
+
+def test_json_formatter_includes_request_id_from_context() -> None:
+    formatter = JsonFormatter()
+
+    token = set_request_id(
+        "request-123",
+    )
+
+    try:
+        record = logging.LogRecord(
+            name="app.test",
+            level=logging.INFO,
+            pathname=__file__,
+            lineno=1,
+            msg="Request processed",
+            args=(),
+            exc_info=None,
+        )
+
+        payload = json.loads(formatter.format(record))
+    finally:
+        reset_request_id(token)
+
+    assert payload["message"] == "Request processed"
+    assert payload["request_id"] == "request-123"

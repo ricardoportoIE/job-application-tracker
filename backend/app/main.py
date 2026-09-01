@@ -9,6 +9,7 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.db.session import engine
+from app.middleware.request_id import RequestIdMiddleware
 
 configure_logging()
 
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
+)
+app.add_middleware(
+    RequestIdMiddleware,
 )
 app.add_middleware(
     CORSMiddleware,
