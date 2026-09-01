@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api.exception_handlers import unhandled_exception_handler
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
@@ -18,6 +19,10 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
+)
+app.add_exception_handler(
+    Exception,
+    unhandled_exception_handler,
 )
 app.add_middleware(
     RequestIdMiddleware,

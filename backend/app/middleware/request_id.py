@@ -56,6 +56,11 @@ class RequestIdMiddleware:
         else:
             request_id = generate_request_id()
 
+        state = scope.setdefault(
+            "state",
+            {},
+        )
+        state["request_id"] = request_id
         token = set_request_id(
             request_id,
         )

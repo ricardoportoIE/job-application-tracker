@@ -21,6 +21,15 @@ class JsonFormatter(logging.Formatter):
 
         request_id = get_request_id()
 
+        request_id = get_request_id()
+
+        if request_id is None:
+            request_id = getattr(
+                record,
+                "request_id",
+                None,
+            )
+
         if request_id is not None:
             payload["request_id"] = request_id
 
