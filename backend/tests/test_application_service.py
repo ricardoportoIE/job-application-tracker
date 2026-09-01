@@ -302,60 +302,6 @@ def test_create_saved_application_leaves_applied_at_null(
     assert application.applied_at is None
 
 
-def test_list_for_user_returns_only_owned_applications(
-    db_session: Session,
-) -> None:
-    first_user = create_test_user(db_session)
-    second_user = create_test_user(db_session)
-
-    first_company = create_test_company(
-        db_session,
-        first_user.id,
-        name="Stripe",
-    )
-
-    second_company = create_test_company(
-        db_session,
-        second_user.id,
-        name="GitHub",
-    )
-
-    first_application = create_test_application(
-        db_session,
-        first_user.id,
-        first_company.id,
-        position="Backend Engineer",
-    )
-
-    second_application = create_test_application(
-        db_session,
-        first_user.id,
-        first_company.id,
-        position="Platform Engineer",
-    )
-
-    other_users_application = create_test_application(
-        db_session,
-        second_user.id,
-        second_company.id,
-        position="Software Engineer",
-    )
-
-    applications = ApplicationService.list_for_user(
-        db_session,
-        first_user.id,
-    )
-
-    application_ids = {application.id for application in applications}
-
-    assert application_ids == {
-        first_application.id,
-        second_application.id,
-    }
-
-    assert other_users_application.id not in application_ids
-
-
 def test_get_returns_owned_application(
     db_session: Session,
 ) -> None:

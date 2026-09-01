@@ -284,6 +284,7 @@ def test_create_applied_application_sets_applied_at_and_created_event() -> None:
 
 
 def test_create_saved_application_leaves_applied_at_null() -> None:
+
     user_id, token = create_authenticated_user()
     company_id = create_company_directly(user_id)
 
@@ -340,9 +341,13 @@ def test_list_applications_returns_only_current_users_applications() -> None:
 
     assert response.status_code == 200
 
-    applications = response.json()
+    body = response.json()
 
-    application_ids = {application["id"] for application in applications}
+    assert body["total"] == 2
+    assert body["limit"] == 20
+    assert body["offset"] == 0
+
+    application_ids = {application["id"] for application in body["items"]}
 
     assert application_ids == {
         str(first_application_id),
@@ -350,6 +355,8 @@ def test_list_applications_returns_only_current_users_applications() -> None:
     }
 
     assert str(other_users_application_id) not in application_ids
+    first_user_id, first_token = create_authenticated_user()
+    second_user_id, _ = create_authenticated_user()
 
 
 def test_get_application_returns_owned_application() -> None:
@@ -673,6 +680,189 @@ def test_application_route_rejects_invalid_application_uuid() -> None:
 
     response = client.get(
         "/api/v1/applications/not-a-uuid",
+        headers=auth_headers(token),
+    )
+
+    assert response.status_code == 422
+
+
+def test_list_applications_filters_by_status() -> None:
+    user_id, token = create_authenticated_user()
+    company_id = create_company_directly(user_id)
+
+    applied_id = create_application_directly(
+        user_id,
+        company_id,
+        position="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+
+    create_application_directly(
+        user_id,
+        company_id,
+        position="Platform Engineer",
+        status=ApplicationStatus.SAVED,
+    )
+
+    response = client.get(
+        "/api/v1/applications?status=applied",
+        headers=auth_headers(token),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["total"] == 1
+    assert len(body["items"]) == 1
+    assert body["items"][0]["id"] == str(applied_id)
+    assert body["items"][0]["status"] == "applied"
+
+
+def test_list_applications_filters_by_company() -> None:
+    user_id, token = create_authenticated_user()
+
+    stripe_id = create_company_directly(
+        user_id,
+        name="Stripe",
+    )
+    github_id = create_company_directly(
+        user_id,
+        name="GitHub",
+    )
+
+    expected_id = create_application_directly(
+        user_id,
+        stripe_id,
+        position="Backend Engineer",
+    )
+
+    create_application_directly(
+        user_id,
+        github_id,
+        position="Platform Engineer",
+    )
+
+    response = client.get(
+        f"/api/v1/applications?company_id={stripe_id}",
+        headers=auth_headers(token),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["total"] == 1
+    assert len(body["items"]) == 1
+    assert body["items"][0]["id"] == str(expected_id)
+    assert body["items"][0]["company_id"] == str(stripe_id)
+
+
+def test_list_applications_searches_case_insensitively() -> None:
+    user_id, token = create_authenticated_user()
+    company_id = create_company_directly(user_id)
+
+    expected_id = create_application_directly(
+        user_id,
+        company_id,
+        position="Senior Backend Engineer",
+    )
+
+    create_application_directly(
+        user_id,
+        company_id,
+        position="Platform Engineer",
+    )
+
+    response = client.get(
+        "/api/v1/applications?search=BACKEND",
+        headers=auth_headers(token),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["total"] == 1
+    assert len(body["items"]) == 1
+    assert body["items"][0]["id"] == str(expected_id)
+    assert body["items"][0]["position"] == "Senior Backend Engineer"
+
+
+def test_list_applications_applies_pagination() -> None:
+    user_id, token = create_authenticated_user()
+    company_id = create_company_directly(user_id)
+
+    for position in [
+        "Alpha Engineer",
+        "Bravo Engineer",
+        "Charlie Engineer",
+        "Delta Engineer",
+        "Echo Engineer",
+    ]:
+        create_application_directly(
+            user_id,
+            company_id,
+            position=position,
+        )
+
+    response = client.get(
+        ("/api/v1/applications?limit=2&offset=2&sort_by=position&sort_order=asc"),
+        headers=auth_headers(token),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["total"] == 5
+    assert body["limit"] == 2
+    assert body["offset"] == 2
+
+    assert [application["position"] for application in body["items"]] == [
+        "Charlie Engineer",
+        "Delta Engineer",
+    ]
+
+
+def test_list_applications_sorts_by_position_descending() -> None:
+    user_id, token = create_authenticated_user()
+    company_id = create_company_directly(user_id)
+
+    for position in [
+        "Alpha Engineer",
+        "Charlie Engineer",
+        "Bravo Engineer",
+    ]:
+        create_application_directly(
+            user_id,
+            company_id,
+            position=position,
+        )
+
+    response = client.get(
+        ("/api/v1/applications?sort_by=position&sort_order=desc"),
+        headers=auth_headers(token),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["total"] == 3
+
+    assert [application["position"] for application in body["items"]] == [
+        "Charlie Engineer",
+        "Bravo Engineer",
+        "Alpha Engineer",
+    ]
+
+
+def test_list_applications_rejects_invalid_pagination() -> None:
+    _, token = create_authenticated_user()
+
+    response = client.get(
+        "/api/v1/applications?limit=101&offset=-1",
         headers=auth_headers(token),
     )
 

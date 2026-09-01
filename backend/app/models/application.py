@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Numeric,
     String,
     Text,
@@ -60,6 +61,23 @@ class Application(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "work_model IN ('onsite', 'hybrid', 'remote')",
             name="work_model",
+        ),
+        Index(
+            "ix_applications_user_created_at",
+            "user_id",
+            "created_at",
+        ),
+        Index(
+            "ix_applications_user_status_created_at",
+            "user_id",
+            "status",
+            "created_at",
+        ),
+        Index(
+            "ix_applications_user_company_created_at",
+            "user_id",
+            "company_id",
+            "created_at",
         ),
     )
 

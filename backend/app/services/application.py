@@ -1,15 +1,18 @@
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.application import Application
 from app.models.application_event import ApplicationEvent
+from app.models.company import Company
 from app.models.enums import ApplicationEventType, ApplicationStatus
 from app.schemas.application import ApplicationCreate, ApplicationUpdate
+from app.schemas.application_query import ApplicationListParams
 from app.services.company import CompanyService
 
 
@@ -50,17 +53,136 @@ class ApplicationService:
         return status is not ApplicationStatus.SAVED
 
     @staticmethod
-    def list_for_user(
+    def _escape_like_pattern(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    @classmethod
+    def list_page_for_user(
+        cls,
         session: Session,
         user_id: uuid.UUID,
-    ) -> list[Application]:
-        applications = session.scalars(
-            select(Application)
-            .where(Application.user_id == user_id)
-            .order_by(Application.created_at.desc())
+        params: ApplicationListParams,
+    ) -> tuple[list[Application], int]:
+        conditions = [
+            Application.user_id == user_id,
+        ]
+
+        if params.status is not None:
+            conditions.append(
+                Application.status == params.status,
+            )
+
+        if params.company_id is not None:
+            conditions.append(
+                Application.company_id == params.company_id,
+            )
+
+        if params.work_model is not None:
+            conditions.append(
+                Application.work_model == params.work_model,
+            )
+
+        if params.source is not None:
+            conditions.append(
+                Application.source == params.source,
+            )
+
+        if params.search is not None:
+            escaped_search = cls._escape_like_pattern(
+                params.search,
+            )
+            search_pattern = f"%{escaped_search}%"
+
+            conditions.append(
+                or_(
+                    Application.position.ilike(
+                        search_pattern,
+                        escape="\\",
+                    ),
+                    Company.name.ilike(
+                        search_pattern,
+                        escape="\\",
+                    ),
+                    Application.location.ilike(
+                        search_pattern,
+                        escape="\\",
+                    ),
+                )
+            )
+
+        total_statement = (
+            select(
+                func.count(Application.id),
+            )
+            .select_from(Application)
+            .join(
+                Company,
+                Application.company_id == Company.id,
+            )
+            .where(*conditions)
         )
 
-        return list(applications.all())
+        total = session.scalar(
+            total_statement,
+        )
+        order_expression: Any
+
+        if params.sort_by == "created_at":
+            if params.sort_order == "asc":
+                order_expression = Application.created_at.asc()
+            else:
+                order_expression = Application.created_at.desc()
+
+        elif params.sort_by == "updated_at":
+            if params.sort_order == "asc":
+                order_expression = Application.updated_at.asc()
+            else:
+                order_expression = Application.updated_at.desc()
+
+        elif params.sort_by == "position":
+            if params.sort_order == "asc":
+                order_expression = func.lower(
+                    Application.position,
+                ).asc()
+            else:
+                order_expression = func.lower(
+                    Application.position,
+                ).desc()
+
+        else:
+            if params.sort_order == "asc":
+                order_expression = Application.applied_at.asc().nulls_last()
+            else:
+                order_expression = Application.applied_at.desc().nulls_last()
+
+        if params.sort_order == "asc":
+            id_order_expression = Application.id.asc()
+        else:
+            id_order_expression = Application.id.desc()
+
+        statement = (
+            select(Application)
+            .join(
+                Company,
+                Application.company_id == Company.id,
+            )
+            .where(*conditions)
+            .order_by(
+                order_expression,
+                id_order_expression,
+            )
+            .limit(params.limit)
+            .offset(params.offset)
+        )
+
+        applications = session.scalars(
+            statement,
+        )
+
+        return (
+            list(applications.all()),
+            int(total or 0),
+        )
 
     @staticmethod
     def get_by_id(

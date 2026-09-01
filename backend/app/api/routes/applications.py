@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -12,6 +12,10 @@ from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
     ApplicationUpdate,
+)
+from app.schemas.application_query import (
+    ApplicationListParams,
+    ApplicationListResponse,
 )
 from app.services.application import (
     ApplicationNotFoundError,
@@ -59,13 +63,29 @@ def create_application(
     response_model=list[ApplicationRead],
     status_code=status.HTTP_200_OK,
 )
+@router.get(
+    "",
+    response_model=ApplicationListResponse,
+    status_code=status.HTTP_200_OK,
+)
 def list_applications(
+    params: Annotated[ApplicationListParams, Query()],
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db)],
-) -> list[Application]:
-    return ApplicationService.list_for_user(
+) -> ApplicationListResponse:
+    applications, total = ApplicationService.list_page_for_user(
         session,
         current_user.id,
+        params,
+    )
+
+    return ApplicationListResponse(
+        items=[
+            ApplicationRead.model_validate(application) for application in applications
+        ],
+        total=total,
+        limit=params.limit,
+        offset=params.offset,
     )
 
 
