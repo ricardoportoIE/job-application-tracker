@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.api.openapi import error_responses
 from app.db.session import get_db
 from app.models.application import Application
 from app.models.user import User
@@ -34,6 +35,14 @@ router = APIRouter(
     "",
     response_model=ApplicationRead,
     status_code=status.HTTP_201_CREATED,
+    responses=error_responses(
+        401,
+        403,
+        404,
+        422,
+        500,
+        mixed_422=True,
+    ),
 )
 def create_application(
     data: ApplicationCreate,
@@ -60,13 +69,14 @@ def create_application(
 
 @router.get(
     "",
-    response_model=list[ApplicationRead],
-    status_code=status.HTTP_200_OK,
-)
-@router.get(
-    "",
     response_model=ApplicationListResponse,
     status_code=status.HTTP_200_OK,
+    responses=error_responses(
+        401,
+        403,
+        422,
+        500,
+    ),
 )
 def list_applications(
     params: Annotated[ApplicationListParams, Query()],
@@ -93,6 +103,13 @@ def list_applications(
     "/{application_id}",
     response_model=ApplicationRead,
     status_code=status.HTTP_200_OK,
+    responses=error_responses(
+        401,
+        403,
+        404,
+        422,
+        500,
+    ),
 )
 def get_application(
     application_id: uuid.UUID,
@@ -116,6 +133,14 @@ def get_application(
     "/{application_id}",
     response_model=ApplicationRead,
     status_code=status.HTTP_200_OK,
+    responses=error_responses(
+        401,
+        403,
+        404,
+        422,
+        500,
+        mixed_422=True,
+    ),
 )
 def update_application(
     application_id: uuid.UUID,
@@ -150,6 +175,13 @@ def update_application(
 @router.delete(
     "/{application_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses=error_responses(
+        401,
+        403,
+        404,
+        422,
+        500,
+    ),
 )
 def delete_application(
     application_id: uuid.UUID,

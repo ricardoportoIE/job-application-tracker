@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.api.openapi import error_responses
 from app.db.session import get_db
 from app.models.company import Company
 from app.models.user import User
@@ -25,6 +26,12 @@ router = APIRouter(
     "",
     response_model=CompanyRead,
     status_code=status.HTTP_201_CREATED,
+    responses=error_responses(
+        401,
+        403,
+        422,
+        500,
+    ),
 )
 def create_company(
     data: CompanyCreate,
@@ -42,6 +49,11 @@ def create_company(
     "",
     response_model=list[CompanyRead],
     status_code=status.HTTP_200_OK,
+    responses=error_responses(
+        401,
+        403,
+        500,
+    ),
 )
 def list_companies(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -57,6 +69,13 @@ def list_companies(
     "/{company_id}",
     response_model=CompanyRead,
     status_code=status.HTTP_200_OK,
+    responses=error_responses(
+        401,
+        403,
+        404,
+        422,
+        500,
+    ),
 )
 def get_company(
     company_id: uuid.UUID,
@@ -80,6 +99,13 @@ def get_company(
     "/{company_id}",
     response_model=CompanyRead,
     status_code=status.HTTP_200_OK,
+    responses=error_responses(
+        401,
+        403,
+        404,
+        422,
+        500,
+    ),
 )
 def update_company(
     company_id: uuid.UUID,
@@ -104,6 +130,14 @@ def update_company(
 @router.delete(
     "/{company_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses=error_responses(
+        401,
+        403,
+        404,
+        409,
+        422,
+        500,
+    ),
 )
 def delete_company(
     company_id: uuid.UUID,
