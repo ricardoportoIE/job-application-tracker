@@ -4,8 +4,12 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.exception_handlers import unhandled_exception_handler
+from app.api.exception_handlers import (
+    http_exception_handler,
+    unhandled_exception_handler,
+)
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
@@ -20,13 +24,21 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
 )
+
+app.add_exception_handler(
+    StarletteHTTPException,
+    http_exception_handler,
+)
+
 app.add_exception_handler(
     Exception,
     unhandled_exception_handler,
 )
+
 app.add_middleware(
     RequestIdMiddleware,
 )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,

@@ -167,9 +167,13 @@ def test_create_application_requires_authentication() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Could not validate credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Could not validate credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 def test_create_application_rejects_another_users_company() -> None:
@@ -190,9 +194,12 @@ def test_create_application_rejects_another_users_company() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Company not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_create_application_rejects_invalid_salary_range() -> None:
@@ -212,9 +219,12 @@ def test_create_application_rejects_invalid_salary_range() -> None:
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "salary_min cannot be greater than salary_max",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "salary_min cannot be greater than salary_max"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_create_application_normalizes_currency() -> None:
@@ -355,8 +365,6 @@ def test_list_applications_returns_only_current_users_applications() -> None:
     }
 
     assert str(other_users_application_id) not in application_ids
-    first_user_id, first_token = create_authenticated_user()
-    second_user_id, _ = create_authenticated_user()
 
 
 def test_get_application_returns_owned_application() -> None:
@@ -393,9 +401,12 @@ def test_get_application_returns_404_for_nonexistent_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_get_application_does_not_expose_another_users_application() -> None:
@@ -415,9 +426,12 @@ def test_get_application_does_not_expose_another_users_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_update_application_changes_only_provided_fields() -> None:
@@ -521,9 +535,12 @@ def test_update_application_rejects_another_users_company() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Company not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
         application = session.get(
@@ -556,9 +573,12 @@ def test_update_application_rejects_invalid_salary_range() -> None:
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "salary_min cannot be greater than salary_max",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "salary_min cannot be greater than salary_max"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_update_application_does_not_modify_another_users_application() -> None:
@@ -582,9 +602,12 @@ def test_update_application_does_not_modify_another_users_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
         application = session.get(
@@ -661,9 +684,12 @@ def test_delete_application_does_not_delete_another_users_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
         assert (

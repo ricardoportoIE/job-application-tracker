@@ -215,9 +215,13 @@ def test_create_application_event_requires_authentication() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Could not validate credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Could not validate credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 @pytest.mark.parametrize(
@@ -246,9 +250,12 @@ def test_create_application_event_rejects_automatic_event_types(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "Event type cannot be created manually",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Event type cannot be created manually"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_create_application_event_rejects_manual_status_fields() -> None:
@@ -271,9 +278,12 @@ def test_create_application_event_rejects_manual_status_fields() -> None:
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "from_status and to_status cannot be set manually",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "from_status and to_status cannot be set manually"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_create_application_event_rejects_another_users_application() -> None:
@@ -296,9 +306,12 @@ def test_create_application_event_rejects_another_users_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_list_application_events_returns_timeline() -> None:
@@ -363,9 +376,12 @@ def test_list_application_events_rejects_another_users_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_get_application_event_returns_owned_event() -> None:
@@ -432,9 +448,12 @@ def test_get_application_event_rejects_event_from_different_application() -> Non
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application event not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application event not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_get_application_event_rejects_another_users_application() -> None:
@@ -458,9 +477,12 @@ def test_get_application_event_rejects_another_users_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_update_manual_application_event_changes_allowed_fields() -> None:
@@ -521,9 +543,12 @@ def test_update_automatic_application_event_returns_conflict() -> None:
     )
 
     assert response.status_code == 409
-    assert response.json() == {
-        "detail": "Automatic application events cannot be modified",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Automatic application events cannot be modified"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_update_application_event_rejects_event_from_different_application() -> None:
@@ -562,9 +587,12 @@ def test_update_application_event_rejects_event_from_different_application() -> 
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application event not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application event not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_delete_manual_application_event_removes_event() -> None:
@@ -617,9 +645,12 @@ def test_delete_automatic_application_event_returns_conflict() -> None:
     )
 
     assert response.status_code == 409
-    assert response.json() == {
-        "detail": "Automatic application events cannot be deleted",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Automatic application events cannot be deleted"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
         assert (
@@ -652,9 +683,12 @@ def test_delete_application_event_rejects_another_users_application() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Application not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Application not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
         assert (

@@ -108,9 +108,12 @@ def test_register_user_rejects_duplicate_email() -> None:
 
     assert first_response.status_code == 201
     assert second_response.status_code == 409
-    assert second_response.json() == {
-        "detail": "Email already registered",
-    }
+
+    body = second_response.json()
+
+    assert body["detail"] == "Email already registered"
+    assert body["request_id"]
+    assert second_response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_register_user_rejects_invalid_email() -> None:
@@ -205,9 +208,12 @@ def test_login_rejects_incorrect_password() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Invalid credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Invalid credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
     assert response.headers["www-authenticate"] == "Bearer"
 
 
@@ -221,9 +227,13 @@ def test_login_rejects_nonexistent_user() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Invalid credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Invalid credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 def test_login_rejects_inactive_user() -> None:
@@ -251,9 +261,12 @@ def test_login_rejects_inactive_user() -> None:
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "detail": "Inactive user",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Inactive user"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_login_rejects_invalid_email() -> None:
@@ -339,9 +352,12 @@ def test_get_me_rejects_missing_token() -> None:
     response = client.get("/api/v1/auth/me")
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Could not validate credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Could not validate credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
     assert response.headers["www-authenticate"] == "Bearer"
 
 
@@ -354,15 +370,21 @@ def test_get_me_rejects_malformed_token() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Could not validate credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Could not validate credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 def test_get_me_rejects_expired_token() -> None:
     token = create_access_token(
         subject=str(uuid4()),
-        expires_delta=timedelta(seconds=-1),
+        expires_delta=timedelta(
+            seconds=-1,
+        ),
     )
 
     response = client.get(
@@ -373,9 +395,13 @@ def test_get_me_rejects_expired_token() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Could not validate credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Could not validate credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 def test_get_me_rejects_nonexistent_user() -> None:
@@ -391,9 +417,13 @@ def test_get_me_rejects_nonexistent_user() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Could not validate credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Could not validate credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 def test_get_me_rejects_inactive_user() -> None:
@@ -423,6 +453,9 @@ def test_get_me_rejects_inactive_user() -> None:
     )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "detail": "Inactive user",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Inactive user"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]

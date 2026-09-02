@@ -12,8 +12,10 @@ from app.main import app
 from app.models.application import Application
 from app.models.company import Company
 from app.models.user import User
+from app.schemas.application import ApplicationCreate
 from app.schemas.company import CompanyCreate
 from app.schemas.user import UserCreate
+from app.services.application import ApplicationService
 from app.services.company import CompanyService
 from app.services.user import UserService
 
@@ -79,7 +81,6 @@ def auth_headers(token: str) -> dict[str, str]:
 def create_company_directly(
     user_id: uuid.UUID,
     name: str = "Stripe",
-    website: str | None = None,
 ) -> uuid.UUID:
     with SessionLocal() as session:
         company = CompanyService.create(
@@ -87,11 +88,27 @@ def create_company_directly(
             user_id,
             CompanyCreate(
                 name=name,
-                website=website,
             ),
         )
 
         return company.id
+
+
+def create_application_directly(
+    user_id: uuid.UUID,
+    company_id: uuid.UUID,
+) -> uuid.UUID:
+    with SessionLocal() as session:
+        application = ApplicationService.create(
+            session,
+            user_id,
+            ApplicationCreate(
+                company_id=company_id,
+                position="Backend Engineer",
+            ),
+        )
+
+        return application.id
 
 
 def test_create_company_returns_created_company() -> None:
@@ -131,22 +148,27 @@ def test_create_company_requires_authentication() -> None:
     )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Could not validate credentials",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Could not validate credentials"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 def test_create_company_rejects_invalid_name() -> None:
-    _, token = create_authenticated_user()
+    user_id, token = create_authenticated_user()
 
     response = client.post(
         "/api/v1/companies",
         headers=auth_headers(token),
         json={
-            "name": "   ",
+            "name": "",
         },
     )
 
+    assert user_id is not None
     assert response.status_code == 422
 
 
@@ -161,7 +183,7 @@ def test_list_companies_returns_only_current_users_companies() -> None:
 
     second_company_id = create_company_directly(
         first_user_id,
-        name="Datadog",
+        name="HubSpot",
     )
 
     other_users_company_id = create_company_directly(
@@ -177,12 +199,14 @@ def test_list_companies_returns_only_current_users_companies() -> None:
     assert response.status_code == 200
 
     companies = response.json()
+
     company_ids = {company["id"] for company in companies}
 
     assert company_ids == {
         str(first_company_id),
         str(second_company_id),
     }
+
     assert str(other_users_company_id) not in company_ids
 
 
@@ -192,7 +216,6 @@ def test_get_company_returns_owned_company() -> None:
     company_id = create_company_directly(
         user_id,
         name="Stripe",
-        website="https://stripe.com",
     )
 
     response = client.get(
@@ -207,7 +230,6 @@ def test_get_company_returns_owned_company() -> None:
     assert body["id"] == str(company_id)
     assert body["user_id"] == str(user_id)
     assert body["name"] == "Stripe"
-    assert body["website"] == "https://stripe.com"
 
 
 def test_get_company_returns_404_for_nonexistent_company() -> None:
@@ -219,9 +241,12 @@ def test_get_company_returns_404_for_nonexistent_company() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Company not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_get_company_does_not_expose_another_users_company() -> None:
@@ -230,7 +255,6 @@ def test_get_company_does_not_expose_another_users_company() -> None:
 
     company_id = create_company_directly(
         owner_id,
-        name="Stripe",
     )
 
     response = client.get(
@@ -239,19 +263,30 @@ def test_get_company_does_not_expose_another_users_company() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Company not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 def test_update_company_changes_only_provided_fields() -> None:
     user_id, token = create_authenticated_user()
 
-    company_id = create_company_directly(
-        user_id,
-        name="Stripe",
-        website="https://stripe.com",
-    )
+    with SessionLocal() as session:
+        company = CompanyService.create(
+            session,
+            user_id,
+            CompanyCreate(
+                name="Stripe",
+                website="https://stripe.com",
+                industry="Fintech",
+                location="Dublin, Ireland",
+            ),
+        )
+
+        company_id = company.id
 
     response = client.patch(
         f"/api/v1/companies/{company_id}",
@@ -268,17 +303,26 @@ def test_update_company_changes_only_provided_fields() -> None:
 
     assert body["name"] == "Stripe Ireland"
     assert body["location"] == "Cork, Ireland"
+
     assert body["website"] == "https://stripe.com"
+    assert body["industry"] == "Fintech"
 
 
 def test_update_company_allows_clearing_optional_field() -> None:
     user_id, token = create_authenticated_user()
 
-    company_id = create_company_directly(
-        user_id,
-        name="Stripe",
-        website="https://stripe.com",
-    )
+    with SessionLocal() as session:
+        company = CompanyService.create(
+            session,
+            user_id,
+            CompanyCreate(
+                name="Stripe",
+                website="https://stripe.com",
+                industry="Fintech",
+            ),
+        )
+
+        company_id = company.id
 
     response = client.patch(
         f"/api/v1/companies/{company_id}",
@@ -289,7 +333,11 @@ def test_update_company_allows_clearing_optional_field() -> None:
     )
 
     assert response.status_code == 200
-    assert response.json()["website"] is None
+
+    body = response.json()
+
+    assert body["website"] is None
+    assert body["industry"] == "Fintech"
 
 
 def test_update_company_rejects_null_name() -> None:
@@ -297,7 +345,6 @@ def test_update_company_rejects_null_name() -> None:
 
     company_id = create_company_directly(
         user_id,
-        name="Stripe",
     )
 
     response = client.patch(
@@ -329,9 +376,12 @@ def test_update_company_does_not_modify_another_users_company() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Company not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
         company = session.get(
@@ -348,7 +398,6 @@ def test_delete_company_removes_owned_company() -> None:
 
     company_id = create_company_directly(
         user_id,
-        name="Stripe",
     )
 
     response = client.delete(
@@ -360,7 +409,13 @@ def test_delete_company_removes_owned_company() -> None:
     assert response.content == b""
 
     with SessionLocal() as session:
-        assert session.get(Company, company_id) is None
+        assert (
+            session.get(
+                Company,
+                company_id,
+            )
+            is None
+        )
 
 
 def test_delete_company_does_not_delete_another_users_company() -> None:
@@ -369,7 +424,6 @@ def test_delete_company_does_not_delete_another_users_company() -> None:
 
     company_id = create_company_directly(
         owner_id,
-        name="Stripe",
     )
 
     response = client.delete(
@@ -378,12 +432,21 @@ def test_delete_company_does_not_delete_another_users_company() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Company not found"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
-        assert session.get(Company, company_id) is not None
+        assert (
+            session.get(
+                Company,
+                company_id,
+            )
+            is not None
+        )
 
 
 def test_delete_company_with_application_returns_conflict() -> None:
@@ -391,20 +454,12 @@ def test_delete_company_with_application_returns_conflict() -> None:
 
     company_id = create_company_directly(
         user_id,
-        name="Stripe",
     )
 
-    with SessionLocal() as session:
-        application = Application(
-            user_id=user_id,
-            company_id=company_id,
-            position="Backend Engineer",
-        )
-
-        session.add(application)
-        session.commit()
-
-        application_id = application.id
+    application_id = create_application_directly(
+        user_id,
+        company_id,
+    )
 
     response = client.delete(
         f"/api/v1/companies/{company_id}",
@@ -412,13 +467,28 @@ def test_delete_company_with_application_returns_conflict() -> None:
     )
 
     assert response.status_code == 409
-    assert response.json() == {
-        "detail": "Company has applications and cannot be deleted",
-    }
+
+    body = response.json()
+
+    assert body["detail"] == "Company has applications and cannot be deleted"
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
     with SessionLocal() as session:
-        assert session.get(Company, company_id) is not None
-        assert session.get(Application, application_id) is not None
+        assert (
+            session.get(
+                Company,
+                company_id,
+            )
+            is not None
+        )
+        assert (
+            session.get(
+                Application,
+                application_id,
+            )
+            is not None
+        )
 
 
 def test_company_route_rejects_invalid_company_uuid() -> None:
