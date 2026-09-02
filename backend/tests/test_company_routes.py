@@ -171,6 +171,14 @@ def test_create_company_rejects_invalid_name() -> None:
     assert user_id is not None
     assert response.status_code == 422
 
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body", "name"] for error in body["detail"])
+
 
 def test_list_companies_returns_only_current_users_companies() -> None:
     first_user_id, first_token = create_authenticated_user()
@@ -357,6 +365,14 @@ def test_update_company_rejects_null_name() -> None:
 
     assert response.status_code == 422
 
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body"] for error in body["detail"])
+
 
 def test_update_company_does_not_modify_another_users_company() -> None:
     owner_id, _ = create_authenticated_user()
@@ -500,3 +516,11 @@ def test_company_route_rejects_invalid_company_uuid() -> None:
     )
 
     assert response.status_code == 422
+
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["path", "company_id"] for error in body["detail"])

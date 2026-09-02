@@ -127,6 +127,14 @@ def test_register_user_rejects_invalid_email() -> None:
 
     assert response.status_code == 422
 
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body", "email"] for error in body["detail"])
+
 
 def test_register_user_rejects_short_password() -> None:
     response = client.post(
@@ -138,6 +146,14 @@ def test_register_user_rejects_short_password() -> None:
     )
 
     assert response.status_code == 422
+
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body", "password"] for error in body["detail"])
 
 
 def test_register_user_rejects_extra_fields() -> None:
@@ -151,6 +167,14 @@ def test_register_user_rejects_extra_fields() -> None:
     )
 
     assert response.status_code == 422
+
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body", "is_active"] for error in body["detail"])
 
 
 def test_login_returns_access_token() -> None:
@@ -280,6 +304,14 @@ def test_login_rejects_invalid_email() -> None:
 
     assert response.status_code == 422
 
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body", "email"] for error in body["detail"])
+
 
 def test_login_rejects_empty_password() -> None:
     response = client.post(
@@ -291,6 +323,14 @@ def test_login_rejects_empty_password() -> None:
     )
 
     assert response.status_code == 422
+
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body", "password"] for error in body["detail"])
 
 
 def test_login_rejects_extra_fields() -> None:
@@ -304,6 +344,14 @@ def test_login_rejects_extra_fields() -> None:
     )
 
     assert response.status_code == 422
+
+    body = response.json()
+
+    assert isinstance(body["detail"], list)
+    assert body["detail"]
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert any(error["loc"] == ["body", "remember_me"] for error in body["detail"])
 
 
 def test_get_me_returns_authenticated_user() -> None:

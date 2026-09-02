@@ -2,6 +2,8 @@ import logging
 from collections.abc import Mapping
 
 from fastapi import Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -30,10 +32,7 @@ def build_error_headers(
     request_id: str,
     existing_headers: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    headers = dict(
-        existing_headers or {},
-    )
-
+    headers = dict(existing_headers or {})
     headers[REQUEST_ID_HEADER] = request_id
 
     return headers
@@ -66,6 +65,36 @@ async def http_exception_handler(
     )
 
 
+async def validation_exception_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    if not isinstance(
+        exc,
+        RequestValidationError,
+    ):
+        raise exc
+
+    request_id = get_request_id_from_request(
+        request,
+    )
+
+    content = jsonable_encoder(
+        {
+            "detail": exc.errors(),
+            "request_id": request_id,
+        }
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content=content,
+        headers=build_error_headers(
+            request_id,
+        ),
+    )
+
+
 async def unhandled_exception_handler(
     request: Request,
     exc: Exception,
@@ -85,7 +114,7 @@ async def unhandled_exception_handler(
             "request_id": request_id,
             "http_method": request.method,
             "http_path": request.url.path,
-            "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "status_code": (status.HTTP_500_INTERNAL_SERVER_ERROR),
         },
     )
 
