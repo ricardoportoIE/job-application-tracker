@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,6 +16,8 @@ from app.services.auth import (
     InvalidCredentialsError,
 )
 from app.services.user import UserAlreadyExistsError, UserService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/auth",
@@ -64,22 +67,45 @@ def login(
     session: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
     try:
-        return AuthService.login(
+        token = AuthService.login(
             session,
             str(data.email),
             data.password,
         )
     except InvalidCredentialsError as exc:
+        logger.warning(
+            "Authentication failed",
+            extra={
+                "event": "auth.login.failed",
+            },
+        )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
     except InactiveUserError as exc:
+        logger.warning(
+            "Authentication rejected for inactive user",
+            extra={
+                "event": "auth.login.inactive",
+            },
+        )
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",
         ) from exc
+
+    logger.info(
+        "Authentication succeeded",
+        extra={
+            "event": "auth.login.succeeded",
+        },
+    )
+
+    return token
 
 
 @router.get(

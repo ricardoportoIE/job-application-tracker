@@ -24,7 +24,11 @@ def cleanup_test_users() -> Generator[None]:
 
     with SessionLocal() as session:
         session.execute(
-            delete(User).where(User.email.like(f"{TEST_EMAIL_PREFIX}%@example.com"))
+            delete(User).where(
+                User.email.like(
+                    f"{TEST_EMAIL_PREFIX}%@example.com",
+                )
+            )
         )
         session.commit()
 
@@ -177,7 +181,9 @@ def test_register_user_rejects_extra_fields() -> None:
     assert any(error["loc"] == ["body", "is_active"] for error in body["detail"])
 
 
-def test_login_returns_access_token() -> None:
+def test_login_returns_access_token(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     email = make_test_email()
     password = "secure-password-123"
 
@@ -191,13 +197,14 @@ def test_login_returns_access_token() -> None:
         )
         user_id = user.id
 
-    response = client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": email,
-            "password": password,
-        },
-    )
+    with caplog.at_level("INFO"):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": email,
+                "password": password,
+            },
+        )
 
     assert response.status_code == 200
 
@@ -206,12 +213,21 @@ def test_login_returns_access_token() -> None:
     assert body["access_token"]
     assert body["token_type"] == "bearer"
 
-    subject = decode_access_token(body["access_token"])
+    subject = decode_access_token(
+        body["access_token"],
+    )
 
     assert subject == str(user_id)
 
+    assert any(
+        record.__dict__.get("event") == "auth.login.succeeded"
+        for record in caplog.records
+    )
 
-def test_login_rejects_incorrect_password() -> None:
+
+def test_login_rejects_incorrect_password(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     email = make_test_email()
 
     with SessionLocal() as session:
@@ -223,13 +239,14 @@ def test_login_rejects_incorrect_password() -> None:
             ),
         )
 
-    response = client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": email,
-            "password": "wrong-password",
-        },
-    )
+    with caplog.at_level("WARNING"):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": email,
+                "password": "wrong-password",
+            },
+        )
 
     assert response.status_code == 401
 
@@ -239,6 +256,10 @@ def test_login_rejects_incorrect_password() -> None:
     assert body["request_id"]
     assert response.headers["X-Request-ID"] == body["request_id"]
     assert response.headers["www-authenticate"] == "Bearer"
+
+    assert any(
+        record.__dict__.get("event") == "auth.login.failed" for record in caplog.records
+    )
 
 
 def test_login_rejects_nonexistent_user() -> None:
@@ -260,7 +281,9 @@ def test_login_rejects_nonexistent_user() -> None:
     assert response.headers["www-authenticate"] == "Bearer"
 
 
-def test_login_rejects_inactive_user() -> None:
+def test_login_rejects_inactive_user(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     email = make_test_email()
     password = "secure-password-123"
 
@@ -276,13 +299,14 @@ def test_login_rejects_inactive_user() -> None:
         user.is_active = False
         session.commit()
 
-    response = client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": email,
-            "password": password,
-        },
-    )
+    with caplog.at_level("WARNING"):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": email,
+                "password": password,
+            },
+        )
 
     assert response.status_code == 403
 
@@ -291,6 +315,11 @@ def test_login_rejects_inactive_user() -> None:
     assert body["detail"] == "Inactive user"
     assert body["request_id"]
     assert response.headers["X-Request-ID"] == body["request_id"]
+
+    assert any(
+        record.__dict__.get("event") == "auth.login.inactive"
+        for record in caplog.records
+    )
 
 
 def test_login_rejects_invalid_email() -> None:

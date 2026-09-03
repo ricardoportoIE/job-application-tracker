@@ -3,9 +3,11 @@ import logging
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import Response
 
 from app.api.exception_handlers import (
     http_exception_handler,
@@ -15,6 +17,7 @@ from app.api.exception_handlers import (
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.core.metrics import DATABASE_HEALTH_FAILURES_TOTAL
 from app.db.session import engine
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
@@ -53,6 +56,7 @@ app.add_middleware(
 app.add_middleware(
     SecurityHeadersMiddleware,
 )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,
@@ -73,45 +77,105 @@ app.add_middleware(
 app.include_router(api_router)
 
 
-@app.get("/health", tags=["health"])
+@app.get(
+    "/health",
+    tags=["health"],
+)
 def health_check() -> dict[str, str]:
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+    }
 
 
-@app.get("/live", tags=["health"])
+@app.get(
+    "/live",
+    tags=["health"],
+)
 def liveness_check() -> dict[str, str]:
-    return {"status": "alive"}
+    return {
+        "status": "alive",
+    }
 
 
 def check_database_connection() -> None:
     with engine.connect() as connection:
-        connection.execute(text("SELECT 1"))
+        connection.execute(
+            text("SELECT 1"),
+        )
 
 
-@app.get("/ready", tags=["health"])
+@app.get(
+    "/ready",
+    tags=["health"],
+)
 def readiness_check() -> dict[str, str]:
     try:
         check_database_connection()
     except SQLAlchemyError as exc:
+        DATABASE_HEALTH_FAILURES_TOTAL.labels(
+            check="readiness",
+        ).inc()
+
+        logger.warning(
+            "Database readiness check failed",
+            extra={
+                "event": "database.readiness.failed",
+            },
+        )
+
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable",
         ) from exc
 
-    return {"status": "ready"}
+    return {
+        "status": "ready",
+    }
 
 
-@app.get("/health/db", tags=["health"])
+@app.get(
+    "/health/db",
+    tags=["health"],
+)
 def database_health_check() -> dict[str, str]:
     try:
         check_database_connection()
     except SQLAlchemyError as exc:
+        DATABASE_HEALTH_FAILURES_TOTAL.labels(
+            check="health",
+        ).inc()
+
+        logger.warning(
+            "Database health check failed",
+            extra={
+                "event": "database.health.failed",
+            },
+        )
+
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable",
         ) from exc
 
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+    }
 
 
-logger.info("Application configured")
+@app.get(
+    "/metrics",
+    include_in_schema=False,
+)
+def metrics() -> Response:
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
+
+
+logger.info(
+    "Application configured",
+    extra={
+        "event": "application.configured",
+    },
+)
