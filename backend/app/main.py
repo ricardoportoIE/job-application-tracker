@@ -71,11 +71,33 @@ def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+@app.get("/live", tags=["health"])
+def liveness_check() -> dict[str, str]:
+    return {"status": "alive"}
+
+
+def check_database_connection() -> None:
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+
+
+@app.get("/ready", tags=["health"])
+def readiness_check() -> dict[str, str]:
+    try:
+        check_database_connection()
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable",
+        ) from exc
+
+    return {"status": "ready"}
+
+
 @app.get("/health/db", tags=["health"])
 def database_health_check() -> dict[str, str]:
     try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+        check_database_connection()
     except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
