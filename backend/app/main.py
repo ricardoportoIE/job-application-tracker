@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.db.session import engine
 from app.middleware.request_id import RequestIdMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 
 configure_logging()
 
@@ -25,6 +26,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
+    docs_url="/docs" if settings.docs_enabled else None,
+    redoc_url="/redoc" if settings.docs_enabled else None,
+    openapi_url="/openapi.json" if settings.docs_enabled else None,
 )
 
 app.add_exception_handler(
@@ -46,6 +50,9 @@ app.add_middleware(
     RequestIdMiddleware,
 )
 
+app.add_middleware(
+    SecurityHeadersMiddleware,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,
