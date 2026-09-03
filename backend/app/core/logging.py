@@ -21,8 +21,6 @@ class JsonFormatter(logging.Formatter):
 
         request_id = get_request_id()
 
-        request_id = get_request_id()
-
         if request_id is None:
             request_id = getattr(
                 record,
@@ -34,6 +32,7 @@ class JsonFormatter(logging.Formatter):
             payload["request_id"] = request_id
 
         for field in (
+            "event",
             "http_method",
             "http_path",
             "status_code",

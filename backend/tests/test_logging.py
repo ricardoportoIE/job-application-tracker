@@ -209,3 +209,49 @@ def test_json_formatter_includes_request_id_from_context() -> None:
 
     assert payload["message"] == "Request processed"
     assert payload["request_id"] == "request-123"
+
+
+def test_json_formatter_includes_http_request_fields() -> None:
+    formatter = JsonFormatter()
+
+    record = logging.LogRecord(
+        name="app.test",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="HTTP request completed",
+        args=(),
+        exc_info=None,
+    )
+
+    record.http_method = "GET"
+    record.http_path = "/health"
+    record.status_code = 200
+    record.duration_ms = 12.34
+
+    payload = json.loads(formatter.format(record))
+
+    assert payload["http_method"] == "GET"
+    assert payload["http_path"] == "/health"
+    assert payload["status_code"] == 200
+    assert payload["duration_ms"] == 12.34
+
+
+def test_json_formatter_includes_event_name() -> None:
+    formatter = JsonFormatter()
+
+    record = logging.LogRecord(
+        name="app.test",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="HTTP request completed",
+        args=(),
+        exc_info=None,
+    )
+
+    record.event = "http.request.completed"
+
+    payload = json.loads(formatter.format(record))
+
+    assert payload["event"] == "http.request.completed"
