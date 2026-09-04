@@ -629,6 +629,15 @@ Recent engineering work has been delivered through separate pull requests for:
 - API security hardening
 - observability and metrics
 
+## Known Limitations and Trade-offs
+
+- The `/metrics` endpoint is currently exposed for local development and should be restricted through private networking, infrastructure controls, or authentication in production.
+- The application currently runs as a single backend service connected to PostgreSQL; horizontal scaling and distributed caching are not yet implemented.
+- The frontend is still under active development and does not yet expose the full backend feature set.
+- AWS deployment and Terraform infrastructure are planned but not yet implemented.
+- Performance benchmarks and load testing have not yet been completed.
+- Monitoring dashboards, alerting, and production deployment evidence will be added during the cloud infrastructure phase.
+
 ## Roadmap
 
 ### Completed
