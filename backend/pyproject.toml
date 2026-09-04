@@ -1,11 +1,9 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Production-oriented FastAPI backend for tracking job applications, companies, hiring stages, and application history."
 readme = "README.md"
-authors = [
-    { name = "Ricardo Porto", email = "ricardoportooliveira@gmail.com" }
-]
+authors = [{ name = "Ricardo Porto", email = "ricardoportooliveira@gmail.com" }]
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.19.1,<2",
