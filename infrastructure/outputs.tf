@@ -12,6 +12,9 @@ output "environment" {
   description = "Deployment environment."
   value       = var.environment
 }
+
+# Networking
+
 output "vpc_id" {
   description = "ID of the main VPC."
   value       = aws_vpc.main.id
@@ -52,6 +55,9 @@ output "private_route_table_id" {
   description = "ID of the private route table."
   value       = aws_route_table.private.id
 }
+
+# Security Groups
+
 output "alb_security_group_id" {
   description = "ID of the Application Load Balancer security group."
   value       = aws_security_group.alb.id
@@ -65,4 +71,21 @@ output "ecs_security_group_id" {
 output "rds_security_group_id" {
   description = "ID of the RDS PostgreSQL security group."
   value       = aws_security_group.rds.id
+}
+
+# Amazon ECR
+
+output "ecr_repository_name" {
+  description = "Name of the backend ECR repository."
+  value       = aws_ecr_repository.backend.name
+}
+
+output "ecr_repository_arn" {
+  description = "ARN of the backend ECR repository."
+  value       = aws_ecr_repository.backend.arn
+}
+
+output "ecr_repository_url" {
+  description = "URL of the backend ECR repository."
+  value       = aws_ecr_repository.backend.repository_url
 }
