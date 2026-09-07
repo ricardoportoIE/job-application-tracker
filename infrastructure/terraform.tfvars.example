@@ -7,3 +7,8 @@ public_subnet_a_cidr  = "10.0.1.0/24"
 public_subnet_b_cidr  = "10.0.2.0/24"
 private_subnet_a_cidr = "10.0.11.0/24"
 private_subnet_b_cidr = "10.0.12.0/24"
+
+db_name              = "jobtracker"
+db_username          = "jobtracker"
+db_instance_class    = "db.t4g.micro"
+db_allocated_storage = 20

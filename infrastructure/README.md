@@ -28,10 +28,17 @@ The current Terraform implementation includes:
 - RDS PostgreSQL security group
 - security group rules enforcing service-to-service access boundaries
 - Amazon ECR repository for the backend container image
-- immutable image tags
+- immutable ECR image tags
 - image scanning on push
 - ECR encryption at rest
 - ECR lifecycle policy for old image cleanup
+- RDS DB subnet group across private subnets
+- Amazon RDS for PostgreSQL
+- encrypted RDS storage
+- AWS-managed RDS master password
+- private-only database access
+- Single-AZ database deployment for portfolio cost optimisation
+- automated RDS backups with one-day retention
 
 ## Networking Architecture
 
@@ -158,13 +165,93 @@ The ECR configuration includes:
 
 The lifecycle policy is an intentional cost and maintenance control that prevents unused container images from accumulating indefinitely.
 
+## Database Architecture
+
+Amazon RDS for PostgreSQL provides the managed relational database layer for the application.
+
+The intended application-to-database path is:
+
+```text
+ECS Fargate
+     |
+     | TCP 5432
+     v
+RDS PostgreSQL
+     |
+     v
+Private subnets
+```
+
+The database is placed in a DB subnet group containing the two private subnets:
+
+```text
+eu-west-1a -> 10.0.11.0/24
+eu-west-1b -> 10.0.12.0/24
+```
+
+The RDS instance is not publicly accessible.
+
+Only resources associated with the ECS Security Group are allowed to initiate PostgreSQL connections through the RDS Security Group.
+
+### PostgreSQL Configuration
+
+The current database configuration uses:
+
+- PostgreSQL 17
+- `gp3` storage
+- 20 GiB default allocated storage
+- encrypted storage
+- `db.t4g.micro` as the default instance class
+- database name `jobtracker`
+- master username `jobtracker`
+- AWS-managed master password
+- one-day automated backup retention
+
+The database name, username, instance class, and allocated storage are configurable through Terraform variables.
+
+### Credential Management
+
+The RDS master password is not stored in Terraform source code or local `.tfvars` files.
+
+Terraform delegates master password management to AWS using:
+
+```hcl
+manage_master_user_password = true
+```
+
+This prevents the database password from being hard-coded in the repository and allows AWS to manage the master credential securely.
+
+Application-level secret retrieval and runtime integration will be added in the AWS Secrets Manager phase.
+
+### RDS Availability and Cost Trade-offs
+
+The current RDS deployment intentionally uses:
+
+```text
+Multi-AZ:             disabled
+Deletion protection:  disabled
+Final snapshot:        skipped
+Backup retention:      1 day
+```
+
+These settings are appropriate for this portfolio environment because infrastructure will be provisioned temporarily, validated, documented, and then destroyed.
+
+A persistent production deployment would typically evaluate:
+
+- Multi-AZ deployment for database high availability
+- longer backup retention
+- deletion protection
+- a required final snapshot before deletion
+- stricter recovery and disaster-recovery objectives
+
+The current configuration prioritises real AWS infrastructure experience while limiting ongoing portfolio costs.
+
 ## Planned Infrastructure
 
 The next infrastructure phases will introduce:
 
 - Amazon ECS Fargate
 - Application Load Balancer
-- Amazon RDS for PostgreSQL
 - AWS Secrets Manager
 - CloudWatch logging and alarms
 
@@ -208,6 +295,17 @@ Then update local values as required.
 
 The local `terraform.tfvars` file is intentionally ignored by Git.
 
+Current database variables include:
+
+```hcl
+db_name              = "jobtracker"
+db_username          = "jobtracker"
+db_instance_class    = "db.t4g.micro"
+db_allocated_storage = 20
+```
+
+No database password should be added to `terraform.tfvars`.
+
 ## Outputs
 
 The Terraform configuration exposes key infrastructure identifiers, including:
@@ -225,12 +323,15 @@ The Terraform configuration exposes key infrastructure identifiers, including:
 - ECR repository name
 - ECR repository ARN
 - ECR repository URL
+- RDS identifier
+- RDS endpoint
+- RDS port
 
-These outputs will be reused by later infrastructure components such as ECS, ALB, and RDS.
+These outputs will be reused by later infrastructure components such as ECS, ALB, Secrets Manager, and deployment workflows.
 
 ## State Management
 
-Terraform state is currently local during the foundation, networking, security, and container registry phases.
+Terraform state is currently local during the foundation, networking, security, container registry, and database phases.
 
 Remote state and state locking will be introduced before persistent production infrastructure is managed.
 
@@ -241,7 +342,8 @@ Do not commit:
 - Terraform state files
 - local `.tfvars` files
 - AWS credentials
-- secrets
+- database passwords
+- application secrets
 - generated Terraform working directories
 
 Sensitive production values will be managed through appropriate AWS services rather than committed to source control.
@@ -249,6 +351,8 @@ Sensitive production values will be managed through appropriate AWS services rat
 Infrastructure access is intentionally restricted through Security Group references instead of broad CIDR-based access wherever possible.
 
 Container images are stored in ECR with immutable tags, encryption at rest, and image scanning enabled.
+
+The PostgreSQL RDS instance is deployed privately, uses encrypted storage, and delegates its master password management to AWS.
 
 ## Portfolio Deployment Strategy
 
@@ -269,6 +373,9 @@ validate infrastructure
   +-- validate security rules
   +-- build and push backend image
   +-- validate ECR image scanning
+  +-- validate RDS subnet placement
+  +-- validate RDS private access
+  +-- validate PostgreSQL connectivity from the application layer
   +-- validate services
   +-- capture screenshots
   +-- collect logs and metrics
@@ -278,4 +385,4 @@ validate infrastructure
 terraform destroy
 ```
 
-This approach demonstrates real AWS provisioning, networking, security, container registry, and operational skills while avoiding unnecessary long-running cloud costs.
+This approach demonstrates real AWS provisioning, networking, security, container registry, managed database, and operational skills while avoiding unnecessary long-running cloud costs.

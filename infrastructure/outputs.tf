@@ -89,3 +89,18 @@ output "ecr_repository_url" {
   description = "URL of the backend ECR repository."
   value       = aws_ecr_repository.backend.repository_url
 }
+
+output "rds_identifier" {
+  description = "Identifier of the PostgreSQL RDS instance."
+  value       = aws_db_instance.main.identifier
+}
+
+output "rds_endpoint" {
+  description = "Endpoint of the PostgreSQL RDS instance."
+  value       = aws_db_instance.main.endpoint
+}
+
+output "rds_port" {
+  description = "Port of the PostgreSQL RDS instance."
+  value       = aws_db_instance.main.port
+}
