@@ -27,6 +27,11 @@ The current Terraform implementation includes:
 - ECS Fargate security group
 - RDS PostgreSQL security group
 - security group rules enforcing service-to-service access boundaries
+- Amazon ECR repository for the backend container image
+- immutable image tags
+- image scanning on push
+- ECR encryption at rest
+- ECR lifecycle policy for old image cleanup
 
 ## Networking Architecture
 
@@ -116,11 +121,47 @@ ALB      -X-> RDS
 
 This design follows the principle of least privilege by limiting each service to only the network access it requires.
 
+## Container Registry
+
+Amazon Elastic Container Registry (ECR) is used to store the backend Docker image before it is deployed to ECS Fargate.
+
+The intended container delivery flow is:
+
+```text
+Backend Dockerfile
+       |
+       v
+docker build
+       |
+       v
+Docker image
+       |
+       v
+Amazon ECR
+       |
+       v
+ECS Fargate
+```
+
+The backend repository is named using the project and environment convention:
+
+```text
+job-application-tracker-dev-backend
+```
+
+The ECR configuration includes:
+
+- immutable image tags to prevent accidental tag overwrites
+- image scanning on push
+- AES-256 encryption at rest
+- a lifecycle policy that keeps only the 10 most recent images
+
+The lifecycle policy is an intentional cost and maintenance control that prevents unused container images from accumulating indefinitely.
+
 ## Planned Infrastructure
 
 The next infrastructure phases will introduce:
 
-- Amazon ECR
 - Amazon ECS Fargate
 - Application Load Balancer
 - Amazon RDS for PostgreSQL
@@ -181,12 +222,15 @@ The Terraform configuration exposes key infrastructure identifiers, including:
 - ALB Security Group ID
 - ECS Security Group ID
 - RDS Security Group ID
+- ECR repository name
+- ECR repository ARN
+- ECR repository URL
 
 These outputs will be reused by later infrastructure components such as ECS, ALB, and RDS.
 
 ## State Management
 
-Terraform state is currently local during the foundation, networking, and security phases.
+Terraform state is currently local during the foundation, networking, security, and container registry phases.
 
 Remote state and state locking will be introduced before persistent production infrastructure is managed.
 
@@ -203,6 +247,8 @@ Do not commit:
 Sensitive production values will be managed through appropriate AWS services rather than committed to source control.
 
 Infrastructure access is intentionally restricted through Security Group references instead of broad CIDR-based access wherever possible.
+
+Container images are stored in ECR with immutable tags, encryption at rest, and image scanning enabled.
 
 ## Portfolio Deployment Strategy
 
@@ -221,6 +267,8 @@ validate infrastructure
   |
   +-- test networking
   +-- validate security rules
+  +-- build and push backend image
+  +-- validate ECR image scanning
   +-- validate services
   +-- capture screenshots
   +-- collect logs and metrics
@@ -230,4 +278,4 @@ validate infrastructure
 terraform destroy
 ```
 
-This approach demonstrates real AWS provisioning, networking, security, and operational skills while avoiding unnecessary long-running cloud costs.
+This approach demonstrates real AWS provisioning, networking, security, container registry, and operational skills while avoiding unnecessary long-running cloud costs.
