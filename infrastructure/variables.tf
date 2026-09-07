@@ -57,3 +57,27 @@ variable "availability_zone_b" {
   type        = string
   default     = "eu-west-1b"
 }
+
+variable "db_name" {
+  description = "Name of the PostgreSQL database."
+  type        = string
+  default     = "jobtracker"
+}
+
+variable "db_username" {
+  description = "Master username for the PostgreSQL database."
+  type        = string
+  default     = "jobtracker"
+}
+
+variable "db_instance_class" {
+  description = "RDS instance class used for the PostgreSQL database."
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "Allocated storage for the PostgreSQL database in GiB."
+  type        = number
+  default     = 20
+}
