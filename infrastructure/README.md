@@ -23,6 +23,10 @@ The current Terraform implementation includes:
 - NAT Gateway
 - public and private route tables
 - route table associations across two Availability Zones
+- Application Load Balancer security group
+- ECS Fargate security group
+- RDS PostgreSQL security group
+- security group rules enforcing service-to-service access boundaries
 
 ## Networking Architecture
 
@@ -54,11 +58,68 @@ A production high-availability architecture would typically provision one NAT Ga
 
 For this project, infrastructure is intended to be provisioned temporarily for validation and documentation, then destroyed to minimise ongoing AWS costs.
 
+## Security Architecture
+
+The current security model uses dedicated Security Groups for the Application Load Balancer, ECS Fargate tasks, and the PostgreSQL RDS database.
+
+```text
+Internet
+   |
+   | TCP 80
+   v
+ALB Security Group
+   |
+   | TCP 8000
+   v
+ECS Security Group
+   |
+   | TCP 5432
+   v
+RDS Security Group
+```
+
+### Application Load Balancer
+
+The ALB Security Group allows inbound HTTP traffic from the internet on port `80`.
+
+It does not provide direct access to ECS or RDS resources.
+
+### ECS Fargate
+
+The ECS Security Group allows inbound application traffic on port `8000` only from the ALB Security Group.
+
+This means ECS tasks are not directly exposed to the public internet.
+
+### Amazon RDS
+
+The RDS Security Group allows inbound PostgreSQL traffic on port `5432` only from the ECS Security Group.
+
+The database does not accept inbound connections directly from the internet or from the ALB.
+
+### Security Boundary
+
+The intended communication path is:
+
+```text
+Internet -> ALB :80
+ALB -> ECS :8000
+ECS -> RDS :5432
+```
+
+The following direct access paths are intentionally not allowed:
+
+```text
+Internet -X-> ECS
+Internet -X-> RDS
+ALB      -X-> RDS
+```
+
+This design follows the principle of least privilege by limiting each service to only the network access it requires.
+
 ## Planned Infrastructure
 
 The next infrastructure phases will introduce:
 
-- security groups
 - Amazon ECR
 - Amazon ECS Fargate
 - Application Load Balancer
@@ -108,7 +169,7 @@ The local `terraform.tfvars` file is intentionally ignored by Git.
 
 ## Outputs
 
-The Terraform configuration exposes key networking identifiers, including:
+The Terraform configuration exposes key infrastructure identifiers, including:
 
 - VPC ID
 - public subnet IDs
@@ -117,12 +178,15 @@ The Terraform configuration exposes key networking identifiers, including:
 - NAT Gateway ID
 - public route table ID
 - private route table ID
+- ALB Security Group ID
+- ECS Security Group ID
+- RDS Security Group ID
 
 These outputs will be reused by later infrastructure components such as ECS, ALB, and RDS.
 
 ## State Management
 
-Terraform state is currently local during the foundation and networking phases.
+Terraform state is currently local during the foundation, networking, and security phases.
 
 Remote state and state locking will be introduced before persistent production infrastructure is managed.
 
@@ -137,6 +201,8 @@ Do not commit:
 - generated Terraform working directories
 
 Sensitive production values will be managed through appropriate AWS services rather than committed to source control.
+
+Infrastructure access is intentionally restricted through Security Group references instead of broad CIDR-based access wherever possible.
 
 ## Portfolio Deployment Strategy
 
@@ -154,6 +220,7 @@ terraform apply
 validate infrastructure
   |
   +-- test networking
+  +-- validate security rules
   +-- validate services
   +-- capture screenshots
   +-- collect logs and metrics
@@ -163,4 +230,4 @@ validate infrastructure
 terraform destroy
 ```
 
-This approach demonstrates real AWS provisioning and operational skills while avoiding unnecessary long-running cloud costs.
+This approach demonstrates real AWS provisioning, networking, security, and operational skills while avoiding unnecessary long-running cloud costs.
