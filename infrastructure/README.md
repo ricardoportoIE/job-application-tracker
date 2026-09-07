@@ -6,24 +6,58 @@ This directory contains the Terraform configuration used to provision and manage
 
 ## Current Scope
 
-The current foundation includes:
+The current Terraform implementation includes:
 
 - Terraform version constraints
 - AWS provider configuration
 - default resource tags
-- environment variables
+- reusable input variables
 - example Terraform variable values
-- basic outputs
+- infrastructure outputs
 - Terraform-specific ignore rules
+- VPC networking
+- two public subnets
+- two private subnets
+- Internet Gateway
+- Elastic IP for NAT
+- NAT Gateway
+- public and private route tables
+- route table associations across two Availability Zones
 
-No AWS resources are created yet.
+## Networking Architecture
+
+The networking layer uses a dedicated VPC across two Availability Zones in `eu-west-1`.
+
+```text
+VPC: 10.0.0.0/16
+
+eu-west-1a
+|-- Public subnet:  10.0.1.0/24
+`-- Private subnet: 10.0.11.0/24
+
+eu-west-1b
+|-- Public subnet:  10.0.2.0/24
+`-- Private subnet: 10.0.12.0/24
+```
+
+Public subnets route internet-bound traffic through an Internet Gateway.
+
+Private subnets route outbound internet traffic through a single NAT Gateway located in the public subnet in `eu-west-1a`.
+
+No inbound internet traffic is routed directly to private subnets.
+
+### NAT Gateway Trade-off
+
+The current design uses a single NAT Gateway as a deliberate portfolio cost optimisation.
+
+A production high-availability architecture would typically provision one NAT Gateway per Availability Zone to reduce cross-AZ dependency and improve resilience.
+
+For this project, infrastructure is intended to be provisioned temporarily for validation and documentation, then destroyed to minimise ongoing AWS costs.
 
 ## Planned Infrastructure
 
 The next infrastructure phases will introduce:
 
-- VPC
-- public and private subnets
 - security groups
 - Amazon ECR
 - Amazon ECS Fargate
@@ -46,3 +80,87 @@ From the `infrastructure` directory:
 ```bash
 terraform init
 ```
+
+Validate formatting and configuration:
+
+```bash
+terraform fmt
+terraform validate
+```
+
+Preview infrastructure changes:
+
+```bash
+terraform plan
+```
+
+## Configuration
+
+Copy the example variables file:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Then update local values as required.
+
+The local `terraform.tfvars` file is intentionally ignored by Git.
+
+## Outputs
+
+The Terraform configuration exposes key networking identifiers, including:
+
+- VPC ID
+- public subnet IDs
+- private subnet IDs
+- Internet Gateway ID
+- NAT Gateway ID
+- public route table ID
+- private route table ID
+
+These outputs will be reused by later infrastructure components such as ECS, ALB, and RDS.
+
+## State Management
+
+Terraform state is currently local during the foundation and networking phases.
+
+Remote state and state locking will be introduced before persistent production infrastructure is managed.
+
+## Security
+
+Do not commit:
+
+- Terraform state files
+- local `.tfvars` files
+- AWS credentials
+- secrets
+- generated Terraform working directories
+
+Sensitive production values will be managed through appropriate AWS services rather than committed to source control.
+
+## Portfolio Deployment Strategy
+
+The AWS environment is intended for temporary validation rather than permanent public hosting.
+
+Typical workflow:
+
+```text
+terraform plan
+  |
+  v
+terraform apply
+  |
+  v
+validate infrastructure
+  |
+  +-- test networking
+  +-- validate services
+  +-- capture screenshots
+  +-- collect logs and metrics
+  +-- document architecture
+  |
+  v
+terraform destroy
+```
+
+This approach demonstrates real AWS provisioning and operational skills while avoiding unnecessary long-running cloud costs.
