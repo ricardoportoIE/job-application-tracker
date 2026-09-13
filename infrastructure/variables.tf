@@ -87,3 +87,10 @@ variable "backend_image_tag" {
   type        = string
   default     = "bootstrap"
 }
+
+variable "jwt_secret_value" {
+  description = "JWT signing secret injected into AWS Secrets Manager."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+}

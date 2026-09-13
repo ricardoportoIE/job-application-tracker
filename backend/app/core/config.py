@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 
@@ -16,8 +17,14 @@ class Settings(BaseSettings):
         "production",
     ] = "development"
     docs_enabled: bool = True
-    database_url: str
+    database_url: str | None = None
     test_database_url: str | None = None
+
+    db_host: str | None = None
+    db_port: int = 5432
+    db_name: str | None = None
+    db_user: str | None = None
+    db_password: SecretStr | None = None
 
     jwt_secret_key: SecretStr
     jwt_algorithm: Literal["HS256"] = "HS256"
@@ -34,6 +41,40 @@ class Settings(BaseSettings):
     )
 
     cors_allow_credentials: bool = True
+
+    @model_validator(mode="after")
+    def build_database_url(self) -> Settings:
+        if self.database_url:
+            return self
+
+        required_values = {
+            "DB_HOST": self.db_host,
+            "DB_NAME": self.db_name,
+            "DB_USER": self.db_user,
+            "DB_PASSWORD": self.db_password,
+        }
+
+        missing = [name for name, value in required_values.items() if value is None]
+
+        if missing:
+            raise ValueError(
+                f"Database configuration is incomplete: missing {', '.join(missing)}"
+            )
+
+        assert self.db_password is not None
+
+        password = self.db_password.get_secret_value()
+
+        self.database_url = URL.create(
+            drivername="postgresql+psycopg",
+            username=self.db_user,
+            password=password,
+            host=self.db_host,
+            port=self.db_port,
+            database=self.db_name,
+        ).render_as_string(hide_password=False)
+
+        return self
 
     @model_validator(mode="after")
     def validate_production_security(self) -> Settings:
