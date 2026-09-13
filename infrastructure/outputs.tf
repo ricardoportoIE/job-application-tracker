@@ -124,3 +124,28 @@ output "alb_listener_arn" {
   description = "ARN of the HTTP listener."
   value       = aws_lb_listener.http.arn
 }
+
+output "ecs_cluster_id" {
+  description = "ID of the ECS cluster."
+  value       = aws_ecs_cluster.main.id
+}
+
+output "ecs_cluster_arn" {
+  description = "ARN of the ECS cluster."
+  value       = aws_ecs_cluster.main.arn
+}
+
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster."
+  value       = aws_ecs_cluster.main.name
+}
+
+output "ecs_task_execution_role_arn" {
+  description = "ARN of the ECS task execution IAM role."
+  value       = aws_iam_role.ecs_task_execution.arn
+}
+
+output "backend_log_group_name" {
+  description = "CloudWatch Log Group used by the backend ECS tasks."
+  value       = aws_cloudwatch_log_group.backend.name
+}
