@@ -39,6 +39,10 @@ The current Terraform implementation includes:
 - private-only database access
 - Single-AZ database deployment for portfolio cost optimisation
 - automated RDS backups with one-day retention
+- public Application Load Balancer across two Availability Zones
+- backend ALB target group for ECS Fargate tasks
+- HTTP listener on port 80
+- backend health checks through `/live`
 
 ## Networking Architecture
 
@@ -127,6 +131,72 @@ ALB      -X-> RDS
 ```
 
 This design follows the principle of least privilege by limiting each service to only the network access it requires.
+
+## Load Balancer Architecture
+
+Amazon Application Load Balancer (ALB) provides the public entry point for the backend API.
+
+The ALB is deployed across both public subnets:
+
+```text
+Internet
+   |
+   | HTTP :80
+   v
+Application Load Balancer
+   |
+   v
+HTTP Listener :80
+   |
+   v
+Backend Target Group :8000
+   |
+   v
+ECS Fargate tasks
+```
+
+The ALB is internet-facing and uses the dedicated ALB Security Group.
+
+The backend target group uses:
+
+```text
+Protocol:    HTTP
+Port:        8000
+Target type: IP
+Health path: /live
+Matcher:     200
+```
+
+The `ip` target type is used because ECS Fargate tasks receive their own network interfaces and IP addresses.
+
+The target group health check calls `/live`, allowing the load balancer to verify whether backend tasks are alive before routing traffic to them.
+
+### HTTP Listener
+
+The current listener accepts HTTP traffic on port `80` and forwards requests to the backend target group.
+
+```text
+Internet :80
+    |
+    v
+ALB Listener :80
+    |
+    v
+Backend Target Group :8000
+```
+
+HTTPS termination with AWS Certificate Manager can be introduced later if a persistent public deployment or custom domain is added.
+
+### Availability
+
+The ALB spans public subnets in:
+
+```text
+eu-west-1a -> 10.0.1.0/24
+eu-west-1b -> 10.0.2.0/24
+```
+
+This gives the load-balancing layer multi-AZ placement even though the portfolio deployment may initially run a single ECS task.
 
 ## Container Registry
 
@@ -250,9 +320,10 @@ The current configuration prioritises real AWS infrastructure experience while l
 
 The next infrastructure phases will introduce:
 
-- Amazon ECS Fargate
-- Application Load Balancer
-- AWS Secrets Manager
+- Amazon ECS Fargate cluster and services
+- ECS task execution IAM roles
+- ECS task definitions
+- AWS Secrets Manager integration
 - CloudWatch logging and alarms
 
 ## Requirements
@@ -326,12 +397,16 @@ The Terraform configuration exposes key infrastructure identifiers, including:
 - RDS identifier
 - RDS endpoint
 - RDS port
+- ALB ARN
+- ALB DNS name
+- backend target group ARN
+- HTTP listener ARN
 
-These outputs will be reused by later infrastructure components such as ECS, ALB, Secrets Manager, and deployment workflows.
+These outputs will be reused by later infrastructure components such as ECS, Secrets Manager, deployment workflows, and validation tooling.
 
 ## State Management
 
-Terraform state is currently local during the foundation, networking, security, container registry, and database phases.
+Terraform state is currently local during the foundation, networking, security, container registry, database, and load-balancing phases.
 
 Remote state and state locking will be introduced before persistent production infrastructure is managed.
 
@@ -354,6 +429,8 @@ Container images are stored in ECR with immutable tags, encryption at rest, and 
 
 The PostgreSQL RDS instance is deployed privately, uses encrypted storage, and delegates its master password management to AWS.
 
+The Application Load Balancer is the only planned public entry point to the backend application. ECS tasks remain protected behind the ALB Security Group boundary.
+
 ## Portfolio Deployment Strategy
 
 The AWS environment is intended for temporary validation rather than permanent public hosting.
@@ -371,6 +448,9 @@ validate infrastructure
   |
   +-- test networking
   +-- validate security rules
+  +-- validate ALB multi-AZ placement
+  +-- validate ALB DNS endpoint
+  +-- validate target group health checks
   +-- build and push backend image
   +-- validate ECR image scanning
   +-- validate RDS subnet placement
@@ -385,4 +465,4 @@ validate infrastructure
 terraform destroy
 ```
 
-This approach demonstrates real AWS provisioning, networking, security, container registry, managed database, and operational skills while avoiding unnecessary long-running cloud costs.
+This approach demonstrates real AWS provisioning, networking, security, container registry, managed database, load balancing, and operational skills while avoiding unnecessary long-running cloud costs.
