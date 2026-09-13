@@ -149,3 +149,23 @@ output "backend_log_group_name" {
   description = "CloudWatch Log Group used by the backend ECS tasks."
   value       = aws_cloudwatch_log_group.backend.name
 }
+
+output "ecs_task_definition_arn" {
+  description = "ARN of the backend ECS task definition."
+  value       = aws_ecs_task_definition.backend.arn
+}
+
+output "ecs_task_definition_family" {
+  description = "Family name of the backend ECS task definition."
+  value       = aws_ecs_task_definition.backend.family
+}
+
+output "ecs_service_name" {
+  description = "Name of the backend ECS service."
+  value       = aws_ecs_service.backend.name
+}
+
+output "ecs_service_id" {
+  description = "ID of the backend ECS service."
+  value       = aws_ecs_service.backend.id
+}

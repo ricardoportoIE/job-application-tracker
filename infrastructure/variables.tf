@@ -81,3 +81,9 @@ variable "db_allocated_storage" {
   type        = number
   default     = 20
 }
+
+variable "backend_image_tag" {
+  description = "Immutable image tag used by the backend ECS task definition."
+  type        = string
+  default     = "bootstrap"
+}

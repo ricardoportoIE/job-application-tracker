@@ -12,3 +12,5 @@ db_name              = "jobtracker"
 db_username          = "jobtracker"
 db_instance_class    = "db.t4g.micro"
 db_allocated_storage = 20
+
+backend_image_tag = "bootstrap"
