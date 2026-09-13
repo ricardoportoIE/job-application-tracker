@@ -169,3 +169,8 @@ output "ecs_service_id" {
   description = "ID of the backend ECS service."
   value       = aws_ecs_service.backend.id
 }
+
+output "rds_master_secret_arn" {
+  description = "ARN of the AWS-managed RDS master user secret."
+  value       = aws_db_instance.main.master_user_secret[0].secret_arn
+}

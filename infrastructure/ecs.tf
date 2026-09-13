@@ -27,6 +27,58 @@ resource "aws_ecs_task_definition" "backend" {
       image     = "${aws_ecr_repository.backend.repository_url}:${var.backend_image_tag}"
       essential = true
 
+      environment = [
+        {
+          name  = "ENVIRONMENT"
+          value = "production"
+        },
+        {
+          name  = "DOCS_ENABLED"
+          value = "false"
+        },
+        {
+          name  = "LOG_LEVEL"
+          value = "INFO"
+        },
+        {
+          name  = "CORS_ALLOW_CREDENTIALS"
+          value = "true"
+        },
+        {
+          name = "CORS_ALLOWED_ORIGINS"
+          value = jsonencode([
+            "http://${aws_lb.main.dns_name}"
+          ])
+        },
+        {
+          name  = "DB_HOST"
+          value = aws_db_instance.main.address
+        },
+        {
+          name  = "DB_PORT"
+          value = tostring(aws_db_instance.main.port)
+        },
+        {
+          name  = "DB_NAME"
+          value = var.db_name
+        }
+      ]
+
+      secrets = [
+        {
+          name      = "DB_USER"
+          valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:username::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:password::"
+        },
+        {
+          name      = "JWT_SECRET_KEY"
+          valueFrom = aws_secretsmanager_secret.jwt.arn
+        }
+      ]
+
       portMappings = [
         {
           containerPort = 8000
@@ -37,6 +89,7 @@ resource "aws_ecs_task_definition" "backend" {
 
       logConfiguration = {
         logDriver = "awslogs"
+
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.backend.name
           "awslogs-region"        = var.aws_region
@@ -46,6 +99,9 @@ resource "aws_ecs_task_definition" "backend" {
     }
   ])
 
+  depends_on = [
+    aws_secretsmanager_secret_version.jwt,
+  ]
   tags = {
     Name = "${var.project_name}-${var.environment}-backend-task"
   }
@@ -64,6 +120,7 @@ resource "aws_ecs_service" "backend" {
     enable   = true
     rollback = true
   }
+
   network_configuration {
     subnets = [
       aws_subnet.private_a.id,

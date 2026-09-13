@@ -5,8 +5,13 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 
+database_url = settings.database_url
+
+if database_url is None:
+    raise RuntimeError("Database URL was not resolved from application settings")
+
 engine = create_engine(
-    settings.database_url,
+    database_url,
     pool_pre_ping=True,
 )
 
