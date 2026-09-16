@@ -127,7 +127,7 @@ resource "aws_ecs_service" "backend" {
   name            = "${var.project_name}-${var.environment}-backend"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.backend.arn
-  desired_count   = 1
+  desired_count   = var.backend_desired_count
   launch_type     = "FARGATE"
 
   health_check_grace_period_seconds = 60

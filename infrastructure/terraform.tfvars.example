@@ -20,3 +20,4 @@ db_instance_class    = "db.t4g.micro"
 db_allocated_storage = 20
 
 backend_image_tag = "bootstrap"
+backend_desired_count = 0

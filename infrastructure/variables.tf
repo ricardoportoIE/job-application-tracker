@@ -140,3 +140,9 @@ variable "frontend_origin" {
     error_message = "frontend_origin must use HTTPS."
   }
 }
+
+variable "backend_desired_count" {
+  description = "Desired number of backend ECS tasks."
+  type        = number
+  default     = 0
+}
