@@ -13,7 +13,18 @@ React and TypeScript MVP for the Job Application Tracker API.
 - Responsive layouts and accessible controls
 - Request-ID propagation for support and log correlation
 
-## Run locally
+## Run with the complete application
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:5173`. Nginx serves the production build and proxies
+`/api` requests to the backend over the private Compose network.
+
+## Run the development server
 
 ```bash
 cp .env.example .env
@@ -21,7 +32,8 @@ npm ci
 npm run dev
 ```
 
-The default API is `http://localhost:8000/api/v1`. Override it with `VITE_API_BASE_URL`.
+Vite proxies the default `/api/v1` URL to the backend on port `8000`. Override
+it with `VITE_API_BASE_URL` when the API is hosted elsewhere.
 
 ## Quality checks
 
