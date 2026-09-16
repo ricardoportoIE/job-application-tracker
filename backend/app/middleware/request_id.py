@@ -40,7 +40,7 @@ def get_route_path(scope: Scope) -> str:
         if isinstance(path, str):
             return path
 
-    return scope["path"]
+    return "__unmatched__"
 
 
 class RequestIdMiddleware:
@@ -115,6 +115,7 @@ class RequestIdMiddleware:
             duration_seconds = perf_counter() - started_at
             duration_ms = duration_seconds * 1000
             route_path = get_route_path(scope)
+            log_path = scope["path"] if route_path == "__unmatched__" else route_path
 
             HTTP_REQUESTS_TOTAL.labels(
                 method=scope["method"],
@@ -132,7 +133,7 @@ class RequestIdMiddleware:
                 extra={
                     "event": "http.request.completed",
                     "http_method": scope["method"],
-                    "http_path": route_path,
+                    "http_path": log_path,
                     "status_code": status_code,
                     "duration_ms": round(
                         duration_ms,

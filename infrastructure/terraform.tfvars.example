@@ -2,6 +2,11 @@ aws_region   = "eu-west-1"
 project_name = "job-application-tracker"
 environment  = "dev"
 
+api_domain_name = "api.example.com"
+route53_zone_id = "Z000000000000EXAMPLE"
+frontend_origin = "https://app.example.com"
+secrets_version = 1
+
 vpc_cidr              = "10.0.0.0/16"
 public_subnet_a_cidr  = "10.0.1.0/24"
 public_subnet_b_cidr  = "10.0.2.0/24"
@@ -10,6 +15,7 @@ private_subnet_b_cidr = "10.0.12.0/24"
 
 db_name              = "jobtracker"
 db_username          = "jobtracker"
+db_app_username      = "jobtracker_app"
 db_instance_class    = "db.t4g.micro"
 db_allocated_storage = 20
 

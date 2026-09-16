@@ -41,8 +41,15 @@ The current Terraform implementation includes:
 - automated RDS backups with one-day retention
 - public Application Load Balancer across two Availability Zones
 - backend ALB target group for ECS Fargate tasks
-- HTTP listener on port 80
-- backend health checks through `/live`
+- HTTP-to-HTTPS redirect listener on port 80
+- TLS 1.2/1.3 HTTPS listener on port 443
+- ACM certificate with Route 53 DNS validation
+- Route 53 alias record for the API
+- schema-aware backend health checks through `/ready`
+- ECS Fargate cluster, task definition, and service
+- CloudWatch container logs
+- Secrets Manager integration for JWT, metrics, and database credentials
+- separate RDS administrator and application runtime roles
 
 ## Networking Architecture
 
@@ -96,7 +103,7 @@ RDS Security Group
 
 ### Application Load Balancer
 
-The ALB Security Group allows inbound HTTP traffic from the internet on port `80`.
+The ALB Security Group allows HTTPS on `443` and HTTP on `80` only for redirects.
 
 It does not provide direct access to ECS or RDS resources.
 
@@ -163,29 +170,24 @@ The backend target group uses:
 Protocol:    HTTP
 Port:        8000
 Target type: IP
-Health path: /live
+Health path: /ready
 Matcher:     200
 ```
 
 The `ip` target type is used because ECS Fargate tasks receive their own network interfaces and IP addresses.
 
-The target group health check calls `/live`, allowing the load balancer to verify whether backend tasks are alive before routing traffic to them.
+The target group health check calls `/ready`, so traffic is sent only when the task can reach PostgreSQL and the database is at the expected Alembic head.
 
-### HTTP Listener
+### HTTPS Listeners
 
-The current listener accepts HTTP traffic on port `80` and forwards requests to the backend target group.
+Port `80` exists only to redirect clients to HTTPS. Port `443` terminates TLS with an ACM certificate and forwards requests to the backend target group.
 
 ```text
-Internet :80
-    |
-    v
-ALB Listener :80
-    |
-    v
-Backend Target Group :8000
+Internet :80  -> HTTP 301 -> HTTPS :443
+Internet :443 -> ALB TLS  -> Backend Target Group :8000
 ```
 
-HTTPS termination with AWS Certificate Manager can be introduced later if a persistent public deployment or custom domain is added.
+The certificate is DNS-validated through Route 53 and attached to a TLS 1.2/1.3 policy. `api_domain_name`, `route53_zone_id`, and an HTTPS `frontend_origin` are required inputs.
 
 ### Availability
 
@@ -291,7 +293,7 @@ manage_master_user_password = true
 
 This prevents the database password from being hard-coded in the repository and allows AWS to manage the master credential securely.
 
-Application-level secret retrieval and runtime integration will be added in the AWS Secrets Manager phase.
+The ECS execution role can read only the RDS-managed master secret and the project JWT, metrics, and application-database secrets. Container startup uses the master credential for migrations and role provisioning, removes it from the environment, and runs Uvicorn with the limited application credential.
 
 ### RDS Availability and Cost Trade-offs
 
@@ -316,15 +318,16 @@ A persistent production deployment would typically evaluate:
 
 The current configuration prioritises real AWS infrastructure experience while limiting ongoing portfolio costs.
 
-## Planned Infrastructure
+## Remaining Infrastructure Work
 
 The next infrastructure phases will introduce:
 
-- Amazon ECS Fargate cluster and services
-- ECS task execution IAM roles
-- ECS task definitions
-- AWS Secrets Manager integration
-- CloudWatch logging and alarms
+- CloudWatch dashboards and alarms
+- remote Terraform state and locking
+- ECS autoscaling and a multi-task production profile
+- Multi-AZ RDS and longer backup retention
+- automated image publication and deployment
+- frontend hosting and CDN configuration
 
 ## Requirements
 
@@ -400,9 +403,10 @@ The Terraform configuration exposes key infrastructure identifiers, including:
 - ALB ARN
 - ALB DNS name
 - backend target group ARN
-- HTTP listener ARN
+- HTTPS listener ARN
+- public API URL
 
-These outputs will be reused by later infrastructure components such as ECS, Secrets Manager, deployment workflows, and validation tooling.
+These outputs can be reused by deployment workflows, monitoring, and validation tooling.
 
 ## State Management
 
@@ -429,7 +433,7 @@ Container images are stored in ECR with immutable tags, encryption at rest, and 
 
 The PostgreSQL RDS instance is deployed privately, uses encrypted storage, and delegates its master password management to AWS.
 
-The Application Load Balancer is the only planned public entry point to the backend application. ECS tasks remain protected behind the ALB Security Group boundary.
+The Application Load Balancer is the only public entry point to the backend application. ECS tasks remain protected behind the ALB Security Group boundary.
 
 ## Portfolio Deployment Strategy
 

@@ -1,6 +1,7 @@
+import hmac
 import logging
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -18,6 +19,7 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.core.metrics import DATABASE_HEALTH_FAILURES_TOTAL
+from app.db.migrations import DatabaseSchemaError, verify_database_schema
 from app.db.session import engine
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
@@ -71,6 +73,10 @@ app.add_middleware(
     allow_headers=[
         "Authorization",
         "Content-Type",
+        "X-Request-ID",
+    ],
+    expose_headers=[
+        "X-Request-ID",
     ],
 )
 
@@ -102,6 +108,7 @@ def check_database_connection() -> None:
         connection.execute(
             text("SELECT 1"),
         )
+        verify_database_schema(connection)
 
 
 @app.get(
@@ -111,7 +118,7 @@ def check_database_connection() -> None:
 def readiness_check() -> dict[str, str]:
     try:
         check_database_connection()
-    except SQLAlchemyError as exc:
+    except (SQLAlchemyError, DatabaseSchemaError) as exc:
         DATABASE_HEALTH_FAILURES_TOTAL.labels(
             check="readiness",
         ).inc()
@@ -140,7 +147,7 @@ def readiness_check() -> dict[str, str]:
 def database_health_check() -> dict[str, str]:
     try:
         check_database_connection()
-    except SQLAlchemyError as exc:
+    except (SQLAlchemyError, DatabaseSchemaError) as exc:
         DATABASE_HEALTH_FAILURES_TOTAL.labels(
             check="health",
         ).inc()
@@ -166,7 +173,23 @@ def database_health_check() -> dict[str, str]:
     "/metrics",
     include_in_schema=False,
 )
-def metrics() -> Response:
+def metrics(request: Request) -> Response:
+    configured_token = settings.metrics_bearer_token
+
+    if configured_token is not None:
+        authorization = request.headers.get("Authorization", "")
+        scheme, _, supplied_token = authorization.partition(" ")
+
+        if scheme.lower() != "bearer" or not hmac.compare_digest(
+            supplied_token,
+            configured_token.get_secret_value(),
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate metrics credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     return Response(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST,

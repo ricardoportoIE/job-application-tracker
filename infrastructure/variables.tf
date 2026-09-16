@@ -70,6 +70,19 @@ variable "db_username" {
   default     = "jobtracker"
 }
 
+variable "db_app_username" {
+  description = "Least-privileged PostgreSQL username used by the running API."
+  type        = string
+  default     = "jobtracker_app"
+}
+
+variable "db_app_password" {
+  description = "Password stored in Secrets Manager for the application database role."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+}
+
 variable "db_instance_class" {
   description = "RDS instance class used for the PostgreSQL database."
   type        = string
@@ -93,4 +106,37 @@ variable "jwt_secret_value" {
   type        = string
   sensitive   = true
   ephemeral   = true
+}
+
+variable "metrics_bearer_token" {
+  description = "Bearer token required to scrape the production metrics endpoint."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+}
+
+variable "secrets_version" {
+  description = "Increment to rotate write-only application secret versions."
+  type        = number
+  default     = 1
+}
+
+variable "api_domain_name" {
+  description = "Public DNS name used by the HTTPS API endpoint."
+  type        = string
+}
+
+variable "route53_zone_id" {
+  description = "Route 53 hosted zone used to validate the certificate and publish the API record."
+  type        = string
+}
+
+variable "frontend_origin" {
+  description = "HTTPS origin allowed to call the production API from a browser."
+  type        = string
+
+  validation {
+    condition     = startswith(var.frontend_origin, "https://")
+    error_message = "frontend_origin must use HTTPS."
+  }
 }

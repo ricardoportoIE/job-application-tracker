@@ -78,3 +78,22 @@ def test_cors_allows_content_type_header() -> None:
     allowed_headers = response.headers["access-control-allow-headers"].lower()
 
     assert "content-type" in allowed_headers
+
+
+def test_cors_allows_and_exposes_request_id_header() -> None:
+    preflight = client.options(
+        "/api/v1/applications",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "X-Request-ID",
+        },
+    )
+    response = client.get(
+        "/health",
+        headers={"Origin": "http://localhost:5173"},
+    )
+
+    assert preflight.status_code == 200
+    assert "x-request-id" in preflight.headers["access-control-allow-headers"].lower()
+    assert response.headers["access-control-expose-headers"].lower() == "x-request-id"

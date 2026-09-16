@@ -63,3 +63,15 @@ def test_http_request_duration_histogram_is_recorded() -> None:
 
     assert "http_request_duration_seconds_count" in metrics
     assert 'path="/metric-test/{application_id}"' in metrics
+
+
+def test_unmatched_routes_use_single_low_cardinality_label() -> None:
+    for path in ("/unknown-one", "/unknown-two", "/unknown-three"):
+        response = metrics_client.get(path)
+        assert response.status_code == 404
+
+    metrics = generate_latest().decode()
+
+    assert 'path="__unmatched__"' in metrics
+    assert 'path="/unknown-one"' not in metrics
+    assert 'path="/unknown-two"' not in metrics

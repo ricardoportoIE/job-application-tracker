@@ -26,7 +26,10 @@ def test_liveness_check() -> None:
 def test_readiness_check() -> None:
     connection = MagicMock()
 
-    with patch("app.main.engine.connect") as connect:
+    with (
+        patch("app.main.engine.connect") as connect,
+        patch("app.main.verify_database_schema") as verify_schema,
+    ):
         connect.return_value.__enter__.return_value = connection
 
         response = client.get("/ready")
@@ -35,6 +38,7 @@ def test_readiness_check() -> None:
     assert response.json() == {"status": "ready"}
 
     connection.execute.assert_called_once()
+    verify_schema.assert_called_once_with(connection)
 
 
 def test_readiness_returns_503_when_database_is_unavailable(
@@ -71,7 +75,10 @@ def test_readiness_returns_503_when_database_is_unavailable(
 def test_database_health_check() -> None:
     connection = MagicMock()
 
-    with patch("app.main.engine.connect") as connect:
+    with (
+        patch("app.main.engine.connect") as connect,
+        patch("app.main.verify_database_schema") as verify_schema,
+    ):
         connect.return_value.__enter__.return_value = connection
 
         response = client.get("/health/db")
@@ -80,6 +87,7 @@ def test_database_health_check() -> None:
     assert response.json() == {"status": "healthy"}
 
     connection.execute.assert_called_once()
+    verify_schema.assert_called_once_with(connection)
 
 
 def test_database_health_check_returns_503_when_database_is_unavailable(

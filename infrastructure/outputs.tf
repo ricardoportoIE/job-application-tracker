@@ -121,8 +121,13 @@ output "alb_target_group_arn" {
 }
 
 output "alb_listener_arn" {
-  description = "ARN of the HTTP listener."
-  value       = aws_lb_listener.http.arn
+  description = "ARN of the HTTPS listener."
+  value       = aws_lb_listener.https.arn
+}
+
+output "api_url" {
+  description = "Public HTTPS URL of the backend API."
+  value       = "https://${var.api_domain_name}"
 }
 
 output "ecs_cluster_id" {

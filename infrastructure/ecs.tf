@@ -47,7 +47,7 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name = "CORS_ALLOWED_ORIGINS"
           value = jsonencode([
-            "http://${aws_lb.main.dns_name}"
+            var.frontend_origin
           ])
         },
         {
@@ -67,17 +67,31 @@ resource "aws_ecs_task_definition" "backend" {
       secrets = [
         {
           name      = "DB_USER"
-          valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:username::"
+          valueFrom = "${aws_secretsmanager_secret.application_db.arn}:username::"
         },
         {
           name      = "DB_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.application_db.arn}:password::"
+        },
+        {
+          name      = "DB_ADMIN_USER"
+          valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:username::"
+        },
+        {
+          name      = "DB_ADMIN_PASSWORD"
           valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:password::"
         },
         {
           name      = "JWT_SECRET_KEY"
           valueFrom = aws_secretsmanager_secret.jwt.arn
+        },
+        {
+          name      = "METRICS_BEARER_TOKEN"
+          valueFrom = aws_secretsmanager_secret.metrics.arn
         }
       ]
+
+      readonlyRootFilesystem = true
 
       portMappings = [
         {
@@ -101,6 +115,8 @@ resource "aws_ecs_task_definition" "backend" {
 
   depends_on = [
     aws_secretsmanager_secret_version.jwt,
+    aws_secretsmanager_secret_version.application_db,
+    aws_secretsmanager_secret_version.metrics,
   ]
   tags = {
     Name = "${var.project_name}-${var.environment}-backend-task"
@@ -141,7 +157,7 @@ resource "aws_ecs_service" "backend" {
   }
 
   depends_on = [
-    aws_lb_listener.http,
+    aws_lb_listener.https,
   ]
 
   tags = {

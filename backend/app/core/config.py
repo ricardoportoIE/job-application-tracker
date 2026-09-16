@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
 BASE_DIR = Path(__file__).resolve().parents[3]
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -25,6 +26,8 @@ class Settings(BaseSettings):
     db_name: str | None = None
     db_user: str | None = None
     db_password: SecretStr | None = None
+    db_admin_user: str | None = None
+    db_admin_password: SecretStr | None = None
 
     jwt_secret_key: SecretStr
     jwt_algorithm: Literal["HS256"] = "HS256"
@@ -33,6 +36,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
+        env_ignore_empty=True,
         extra="ignore",
     )
 
@@ -41,6 +45,7 @@ class Settings(BaseSettings):
     )
 
     cors_allow_credentials: bool = True
+    metrics_bearer_token: SecretStr | None = None
 
     @model_validator(mode="after")
     def build_database_url(self) -> Settings:
@@ -98,6 +103,14 @@ class Settings(BaseSettings):
         if len(self.jwt_secret_key.get_secret_value()) < 32:
             raise ValueError(
                 "JWT_SECRET_KEY must be at least 32 characters in production"
+            )
+
+        if self.metrics_bearer_token is None:
+            raise ValueError("METRICS_BEARER_TOKEN must be configured in production")
+
+        if len(self.metrics_bearer_token.get_secret_value()) < 32:
+            raise ValueError(
+                "METRICS_BEARER_TOKEN must be at least 32 characters in production"
             )
 
         return self

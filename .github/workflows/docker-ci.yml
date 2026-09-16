@@ -1,0 +1,46 @@
+name: Docker CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "compose.yaml"
+      - ".github/workflows/docker-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "compose.yaml"
+      - ".github/workflows/docker-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: Backend Image Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build production image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          push: false
+          tags: job-application-tracker-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Smoke test automatic migrations and readiness
+        run: |
+          docker compose up --detach --build --wait backend
+          curl --fail --show-error http://localhost:8000/ready
+      - name: Stop smoke-test stack
+        if: always()
+        run: docker compose down --volumes
