@@ -41,6 +41,8 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
 
         Resource = [
           aws_secretsmanager_secret.jwt.arn,
+          aws_secretsmanager_secret.application_db.arn,
+          aws_secretsmanager_secret.metrics.arn,
           aws_db_instance.main.master_user_secret[0].secret_arn,
         ]
       }

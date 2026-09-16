@@ -7,6 +7,8 @@ from starlette.types import (
     Send,
 )
 
+from app.core.config import settings
+
 
 class SecurityHeadersMiddleware:
     def __init__(
@@ -40,6 +42,11 @@ class SecurityHeadersMiddleware:
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["X-Frame-Options"] = "DENY"
                 headers["Referrer-Policy"] = "no-referrer"
+
+                if settings.environment == "production":
+                    headers["Strict-Transport-Security"] = (
+                        "max-age=31536000; includeSubDomains"
+                    )
 
             await send(message)
 

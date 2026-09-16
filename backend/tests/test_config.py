@@ -22,6 +22,7 @@ def test_settings_accepts_supported_environment() -> None:
         cors_allowed_origins=[
             "https://app.example.com",
         ],
+        metrics_bearer_token=SecretStr("m" * 32),
     )
 
     assert settings.environment == "production"
@@ -91,6 +92,7 @@ def test_production_accepts_non_local_cors_origin() -> None:
         cors_allowed_origins=[
             "https://app.example.com",
         ],
+        metrics_bearer_token=SecretStr("m" * 32),
     )
 
     assert settings.cors_allowed_origins == [
@@ -120,6 +122,28 @@ def test_production_accepts_strong_jwt_secret() -> None:
         cors_allowed_origins=[
             "https://app.example.com",
         ],
+        metrics_bearer_token=SecretStr("m" * 32),
     )
 
     assert settings.jwt_secret_key.get_secret_value() == strong_secret
+
+
+def test_production_requires_metrics_bearer_token() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            database_url="postgresql+psycopg://user:pass@localhost:5432/db",
+            jwt_secret_key=SecretStr("a" * 32),
+            environment="production",
+            cors_allowed_origins=["https://app.example.com"],
+        )
+
+
+def test_production_rejects_short_metrics_bearer_token() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            database_url="postgresql+psycopg://user:pass@localhost:5432/db",
+            jwt_secret_key=SecretStr("a" * 32),
+            metrics_bearer_token=SecretStr("too-short"),
+            environment="production",
+            cors_allowed_origins=["https://app.example.com"],
+        )

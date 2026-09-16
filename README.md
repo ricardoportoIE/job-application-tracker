@@ -1,515 +1,91 @@
 # Job Application Tracker
 
-Production-oriented job application tracking platform built with FastAPI, PostgreSQL, React, Docker, GitHub Actions, and Prometheus.
+A production-oriented job search workspace built with FastAPI, PostgreSQL, React, Docker, Terraform, AWS ECS, and Prometheus.
 
-> Portfolio project focused on backend engineering, security, observability, testing, CI/CD, and cloud-ready architecture.
+The project combines a functional browser MVP with a user-isolated API, automatic schema management, structured observability, hardened containers, and an HTTPS-only AWS architecture.
 
-## Project Highlights
+## Current capabilities
 
-- Production-oriented FastAPI backend with PostgreSQL persistence
-- JWT authentication with Argon2 password hashing
-- User-scoped companies, applications, and application events
-- Search, filtering, sorting, and pagination
-- Structured JSON logging and request correlation IDs
-- Prometheus metrics with low-cardinality route labels
-- Liveness, readiness, and database health endpoints
-- Hardened Docker runtime with non-root execution and reduced privileges
-- Protected `main` branch with required GitHub Actions quality gate
-- 337 automated tests passing in CI
+### Product
 
-## Status
-
-Active development.
-
-The backend is substantially implemented and production-oriented.
-
-Current work is focused on:
-
-- AWS deployment
-- Terraform infrastructure
-- cloud monitoring and alerting
-- performance testing
-- architecture documentation
-- frontend feature development
-
-## Purpose
-
-Job searching often requires tracking vacancies, companies, recruiters, interviews, deadlines, notes, and status changes across several tools.
-
-Job Application Tracker centralises that information into a single system and provides a structured view of the user's hiring pipeline.
-
-The project is also designed as a portfolio-grade system that demonstrates practical software engineering concerns beyond CRUD development.
-
-## Core Features
-
-### Authentication and User Isolation
-
-- User registration and login
-- JWT-based authentication
-- Argon2 password hashing
-- Authenticated `/me` endpoint
-- User-specific resource ownership
-- Generic invalid-credential responses
-- Inactive-user handling
-
-### Company Management
-
-- Create, retrieve, update, list, and delete companies
-- Ownership enforcement for all company operations
-
-### Job Application Management
-
-- Create, retrieve, update, and delete job applications
-- Filter by status, company, source, and work model
-- Search
-- Sorting
-- Pagination
-- Stable result ordering
-- Salary and currency validation
-
-### Application Timeline
-
-- Application event history
-- Automatic application-created events
-- Automatic status-change events
-- Manual notes and timeline events
-- Interview and offer-related event types
-- Chronological ordering
-- Ownership enforcement through parent applications
-
-## Architecture
-
-The backend follows a layered structure:
-
-```text
-backend/
-|-- app/
-|   |-- api/
-|   |   |-- routes/
-|   |   |-- dependencies.py
-|   |   |-- exception_handlers.py
-|   |   |-- openapi.py
-|   |   `-- router.py
-|   |-- core/
-|   |   |-- config.py
-|   |   |-- logging.py
-|   |   |-- metrics.py
-|   |   |-- request_context.py
-|   |   `-- security.py
-|   |-- db/
-|   |-- middleware/
-|   |-- models/
-|   |-- schemas/
-|   |-- services/
-|   `-- main.py
-|-- migrations/
-|-- tests/
-|-- Dockerfile
-|-- alembic.ini
-|-- pyproject.toml
-`-- uv.lock
-```
-
-Responsibilities are separated between:
-
-- **routes** - HTTP and API concerns
-- **schemas** - request and response validation
-- **services** - business logic
-- **models** - persistence and domain entities
-- **core** - configuration, security, logging, and metrics
-- **middleware** - cross-cutting request behaviour
-- **db** - database engine and sessions
-
-## Domain Model
-
-```text
-User
-|-- Companies
-`-- Applications
-    `-- Application Events
-```
-
-Persisted models:
-
-- User
-- Company
-- Application
-- ApplicationEvent
-
-Database schema evolution is managed with Alembic migrations.
-
-## Technology Stack
+- Registration and login
+- Pipeline summary by hiring stage
+- Search and status filtering
+- Company management
+- Application creation, editing, and deletion
+- Application timeline with notes, interviews, and offers
+- Responsive desktop and mobile interface
+- Loading, empty, error, and success states
 
 ### Backend
 
-- Python 3.14
-- FastAPI
-- Pydantic
-- Pydantic Settings
-- SQLAlchemy
-- PostgreSQL 17
-- psycopg
-- Alembic
+- Versioned FastAPI API under `/api/v1`
+- PostgreSQL persistence with SQLAlchemy and Alembic
+- JWT authentication and Argon2 password hashing
+- User-scoped companies, applications, and events
+- Database-level filtering, sorting, and pagination
+- Stable JSON error contracts with request IDs
+- Structured logging, health checks, and Prometheus metrics
 
-### Security
+### Delivery and infrastructure
 
-- PyJWT
-- pwdlib
-- Argon2
-- HTTP Bearer authentication
-- CORS hardening
-- security response headers
+- Non-root, read-only backend container
+- Automatic serialized migrations before API startup
+- Schema-aware readiness checks
+- HTTPS-only public entry point with ACM and Route 53
+- ECS Fargate in private subnets
+- Private RDS PostgreSQL
+- Separate administrative and runtime database roles
+- Secrets Manager for JWT, metrics, and database credentials
+- CI gates for backend, frontend, Terraform, and Docker
 
-### Observability
-
-- Structured JSON logging
-- Request correlation IDs
-- Prometheus client
-- HTTP request counters
-- Request latency histograms
-- Database health-failure counters
-
-### Engineering Tooling
-
-- uv
-- Ruff
-- MyPy
-- pytest
-- pytest-cov
-- Git
-
-### Containerisation
-
-- Docker
-- Docker Compose
-- Multi-stage builds
-- Non-root runtime
-- Read-only root filesystem
-- Dropped Linux capabilities
-- `no-new-privileges`
-- Health checks
-
-### CI/CD
-
-- GitHub Actions
-- Protected `main` branch
-- Required `Backend Quality Gate`
-
-### Frontend
-
-- React
-- TypeScript
-- Vite
-
-### Cloud / Infrastructure
-
-Planned:
-
-- AWS
-- Terraform
-- cloud monitoring
-- alerting
-
-## API Overview
-
-The API is versioned under:
+## Architecture
 
 ```text
-/api/v1
+Browser
+  |
+  | HTTPS + JWT + X-Request-ID
+  v
+Application Load Balancer
+  |
+  | private VPC traffic
+  v
+FastAPI on ECS Fargate
+  |
+  | limited application role
+  v
+PostgreSQL RDS
 ```
 
-Main resource groups:
+Detailed documentation:
+
+- [System architecture](docs/architecture.md)
+- [Database model](docs/database.md)
+- [AWS deployment](docs/deployment.md)
+- [Architecture Decision Records](docs/adr/README.md)
+- [Terraform reference](infrastructure/README.md)
+
+## Repository structure
 
 ```text
-/api/v1/auth
-/api/v1/companies
-/api/v1/applications
-/api/v1/applications/{application_id}/events
+.
+|-- .github/workflows/     CI quality gates
+|-- backend/               FastAPI service, migrations, and tests
+|-- frontend/              React and TypeScript browser application
+|-- infrastructure/        AWS Terraform configuration
+|-- docs/                  Architecture, database, deployment, and ADRs
+|-- compose.yaml            Local PostgreSQL and backend stack
+`-- .env.example            Backend environment template
 ```
 
-Operational endpoints:
+## Run locally
 
-```text
-/health
-/live
-/ready
-/health/db
-/metrics
-```
+### 1. Backend and PostgreSQL
 
-Development documentation:
-
-```text
-/docs
-/redoc
-/openapi.json
-```
-
-API documentation exposure can be disabled through configuration.
-
-## Security
-
-Implemented controls include:
-
-- Argon2 password hashing
-- JWT access tokens
-- required JWT claims
-- restricted JWT algorithm configuration
-- configurable token expiration
-- production JWT secret-length validation
-- generic invalid-credential responses
-- authenticated ownership checks
-- inactive-user enforcement
-- explicit CORS configuration
-- production CORS validation
-- configurable API documentation exposure
-- request ID validation and propagation
-- environment-based secret configuration
-
-Security headers include:
-
-```text
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-Referrer-Policy: no-referrer
-```
-
-Production secrets are not stored in source control.
-
-## Observability
-
-### Structured Logging
-
-Application logs are emitted as JSON and can include:
-
-```text
-timestamp
-level
-logger
-message
-service
-environment
-request_id
-event
-http_method
-http_path
-status_code
-duration_ms
-```
-
-Structured application events include:
-
-```text
-application.configured
-http.request.completed
-auth.login.succeeded
-auth.login.failed
-auth.login.inactive
-database.readiness.failed
-database.health.failed
-```
-
-### Request Correlation
-
-Each HTTP request receives an `X-Request-ID`.
-
-A valid client-provided request ID is propagated. Invalid or missing IDs are replaced with generated UUIDs.
-
-The request ID is included in:
-
-- structured logs
-- API error responses
-- response headers
-
-### Prometheus Metrics
-
-The API exposes:
-
-```text
-/metrics
-```
-
-Current application metrics include:
-
-```text
-http_requests_total
-http_request_duration_seconds
-database_health_failures_total
-```
-
-Dynamic identifiers are normalised to route templates to avoid high-cardinality metric labels.
-
-Example:
-
-```text
-/api/v1/applications/{application_id}
-```
-
-instead of:
-
-```text
-/api/v1/applications/123
-```
-
-## Health and Readiness
-
-### Liveness
-
-```text
-GET /live
-```
-
-Confirms that the application process is alive.
-
-### Readiness
-
-```text
-GET /ready
-```
-
-Verifies that the application can connect to PostgreSQL.
-
-Returns HTTP `503` when the database is unavailable.
-
-### Database Health
-
-```text
-GET /health/db
-```
-
-Provides an explicit database health check.
-
-These endpoints are suitable for container orchestration and future cloud load-balancer health checks.
-
-## Database and Migrations
-
-PostgreSQL is the primary database.
-
-Current migration chain:
-
-```text
-users
--> companies
--> applications
--> application_events
--> application query indexes
-```
-
-CI verifies that:
-
-- migrations can run from an empty database
-- application models match the current migration head
-- the dedicated test database can be independently migrated
-
-## Query Performance
-
-Application listing is supported by database indexes for common access patterns:
-
-```text
-user_id + created_at
-user_id + status + created_at
-user_id + company_id + created_at
-```
-
-Search, filtering, sorting, and pagination are executed at the database query level.
-
-## Testing
-
-The backend currently has:
-
-```text
-337 automated tests passing in CI
-```
-
-The test suite covers:
-
-- routes
-- services
-- schemas
-- authentication
-- JWT handling
-- OpenAPI contracts
-- database isolation
-- database sessions
-- CORS
-- security headers
-- configuration validation
-- error handlers
-- health and readiness
-- structured logging
-- request correlation
-- Prometheus metrics
-
-A dedicated PostgreSQL test database is used:
-
-```text
-jobtracker_test
-```
-
-Safety checks prevent the test suite from accidentally running against the development database.
-
-## Continuous Integration
-
-The backend workflow runs on:
-
-- pushes to `main`
-- pull requests targeting `main`
-- manual workflow dispatches
-
-The `Backend Quality Gate` performs:
-
-```text
-1. Checkout
-2. Python setup
-3. uv installation
-4. Locked dependency installation
-5. PostgreSQL service startup
-6. Dedicated test database creation
-7. Main database migrations
-8. Alembic model consistency check
-9. Test database migrations
-10. Ruff linting
-11. Ruff formatting check
-12. MyPy type checking
-13. Full pytest suite
-```
-
-The `main` branch is protected and requires the `Backend Quality Gate` before changes are integrated.
-
-## Docker
-
-The backend uses a multi-stage Docker build.
-
-The runtime container:
-
-- runs as a non-root user
-- uses a slim Python base image
-- installs only runtime dependencies
-- uses a read-only root filesystem
-- drops Linux capabilities
-- enables `no-new-privileges`
-- uses tmpfs for temporary writable storage
-- exposes an application health check
-
-Docker Compose currently runs:
-
-```text
-PostgreSQL
-Backend API
-```
-
-## Running Locally
-
-### Requirements
-
-- Docker
-- Docker Compose
-
-Clone the repository:
+Copy the backend environment template:
 
 ```bash
-git clone https://github.com/ricardoportoIE/job-application-tracker.git
-cd job-application-tracker
+cp .env.example .env
 ```
 
 Start the stack:
@@ -518,56 +94,42 @@ Start the stack:
 docker compose up --build
 ```
 
-Services:
+The backend waits for PostgreSQL, acquires a migration lock, applies every Alembic migration, verifies the schema, and then starts Uvicorn.
+
+Available endpoints:
 
 ```text
-Backend API: http://localhost:8000
-PostgreSQL:  localhost:5432
-```
-
-When documentation is enabled:
-
-```text
-Swagger UI: http://localhost:8000/docs
-ReDoc:      http://localhost:8000/redoc
-Metrics:    http://localhost:8000/metrics
-Liveness:   http://localhost:8000/live
+API:        http://localhost:8000/api/v1
+Swagger:    http://localhost:8000/docs
 Readiness:  http://localhost:8000/ready
+Metrics:    http://localhost:8000/metrics
 ```
 
-Stop the stack:
+### 2. Frontend
 
 ```bash
-docker compose down
+cd frontend
+cp .env.example .env
+npm ci
+npm run dev
 ```
 
-Remove the development PostgreSQL volume:
+Open `http://localhost:5173`.
+
+The browser stores the access token in `sessionStorage`, so signing out or closing the tab removes the local session.
+
+## Backend development
+
+Requirements: Python 3.14, uv, and PostgreSQL 17.
 
 ```bash
-docker compose down -v
-```
-
-## Running the Backend Without Docker
-
-From the `backend` directory:
-
-```bash
-uv sync
-```
-
-Run migrations:
-
-```bash
+cd backend
+uv sync --locked
 uv run alembic upgrade head
-```
-
-Start the API:
-
-```bash
 uv run uvicorn app.main:app --reload
 ```
 
-Run the quality checks:
+Quality checks:
 
 ```bash
 uv run python -m ruff check .
@@ -576,128 +138,131 @@ uv run python -m mypy app
 uv run python -m pytest
 ```
 
-## Repository Structure
+Tests require a dedicated `jobtracker_test` database. Safety checks reject the development database as a test target.
 
-```text
-.
-|-- .github/
-|   `-- workflows/
-|-- backend/
-|-- frontend/
-|-- infrastructure/
-|-- docs/
-|-- .env.example
-|-- .gitignore
-|-- compose.yaml
-`-- README.md
+## Frontend development
+
+```bash
+cd frontend
+npm ci
+npm run lint
+npm run build
 ```
 
-## Development Workflow
+Set `VITE_API_BASE_URL` to the versioned API base URL. The local default is `http://localhost:8000/api/v1`.
+
+## Security model
+
+### Authentication
+
+- Passwords are hashed with Argon2.
+- JWTs require `sub`, `iat`, and `exp` claims.
+- Production enforces a minimum 32-character signing secret.
+- Resource access always includes the authenticated user's ID.
+
+### Transport and network
+
+- Public AWS traffic enters through HTTPS 443.
+- HTTP 80 only redirects to HTTPS.
+- ECS and RDS have no direct public ingress.
+- Security groups enforce `Internet -> ALB -> ECS -> RDS`.
+
+### Database privileges
+
+Container startup temporarily uses the RDS-managed credential to create or rotate `jobtracker_app`, migrate, and grant the required DML privileges. Administrative variables are removed before Uvicorn starts; the running API uses only the application role.
+
+### Metrics
+
+Production `/metrics` requests require a dedicated bearer token. Unknown routes are labeled `__unmatched__`, preventing arbitrary URLs from creating unbounded Prometheus time series.
+
+## Observability
+
+Every request receives an `X-Request-ID`. The header is accepted and exposed through CORS so the frontend can correlate a visible error with backend logs.
+
+Application metrics include:
 
 ```text
-main
-  |
-  v
-feature branch
-  |
-  v
-implementation
-  |
-  v
-local quality checks
-  |
-  v
-commit
-  |
-  v
-push
-  |
-  v
-pull request
-  |
-  v
-Backend Quality Gate
-  |
-  v
-merge
+http_requests_total
+http_request_duration_seconds
+database_health_failures_total
 ```
 
-Recent engineering work has been delivered through separate pull requests for:
+Logs are JSON and include service, environment, request ID, route template, status, and duration where applicable.
 
-- backend container hardening
-- liveness and readiness
-- API security hardening
-- observability and metrics
+## AWS deployment
 
-## Known Limitations and Trade-offs
+Terraform provisions:
 
-- The `/metrics` endpoint is currently exposed for local development and should be restricted through private networking, infrastructure controls, or authentication in production.
-- The application currently runs as a single backend service connected to PostgreSQL; horizontal scaling and distributed caching are not yet implemented.
-- The frontend is still under active development and does not yet expose the full backend feature set.
-- AWS deployment and Terraform infrastructure are planned but not yet implemented.
-- Performance benchmarks and load testing have not yet been completed.
-- Monitoring dashboards, alerting, and production deployment evidence will be added during the cloud infrastructure phase.
+- VPC with public and private subnets across two Availability Zones
+- Internet and NAT gateways
+- ALB, HTTPS listener, ACM certificate, and Route 53 records
+- ECS cluster, task definition, and service
+- ECR with immutable tags and image scanning
+- Private encrypted RDS PostgreSQL
+- Secrets Manager values and least-privilege execution permissions
+- CloudWatch log group
+
+Copy the example variables:
+
+```bash
+cd infrastructure
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Provide secrets without writing them to disk:
+
+```bash
+export TF_VAR_jwt_secret_value="..."
+export TF_VAR_db_app_password="..."
+export TF_VAR_metrics_bearer_token="..."
+```
+
+Then validate and plan:
+
+```bash
+terraform init
+terraform fmt -check -recursive
+terraform validate
+terraform plan
+```
+
+See [deployment documentation](docs/deployment.md) for required DNS inputs and operational trade-offs.
+
+## Continuous integration
+
+Pull requests and `main` are checked by:
+
+- **Backend CI:** migrations, Alembic consistency, Ruff, formatting, MyPy, and the complete pytest suite
+- **Frontend CI:** locked install, ESLint, and production build
+- **Terraform CI:** formatting, provider initialization, and validation
+- **Docker CI:** production image build, Compose validation, automatic-migration startup, and readiness smoke test
+
+## Known trade-offs
+
+- The portfolio AWS environment uses one ECS task, one NAT Gateway, and Single-AZ RDS to control cost; it is not highly available.
+- JWT access tokens do not yet support refresh or individual revocation.
+- Application search uses escaped `ILIKE`; full-text or trigram indexing should follow measured need.
+- Company and event listing are not yet paginated.
+- The frontend is an MVP and does not yet include automated browser tests or offline support.
+- Remote Terraform state, alarms, autoscaling, and a frontend hosting pipeline remain future work.
 
 ## Roadmap
 
-### Completed
-
-- [x] Backend project structure
-- [x] PostgreSQL persistence
-- [x] Alembic migrations
-- [x] User authentication
-- [x] JWT security
-- [x] Company management
-- [x] Application management
-- [x] Application timeline and events
-- [x] Search, filtering, sorting, and pagination
-- [x] User data isolation
-- [x] API error contracts
-- [x] OpenAPI documentation
-- [x] Health and readiness checks
-- [x] Structured logging
-- [x] Request correlation
-- [x] Prometheus metrics
-- [x] Security hardening
-- [x] Production-oriented Docker container
-- [x] Backend CI quality gate
-- [x] Protected `main` branch
-
-### Planned
-
-- [ ] Frontend application features
-- [ ] Terraform infrastructure
-- [ ] AWS deployment
-- [ ] Cloud monitoring dashboards
-- [ ] Alerting
-- [ ] Performance and load testing
-- [ ] Architecture diagram
-- [ ] Database diagram
-- [ ] Deployment diagram
-- [ ] Architecture Decision Records
-- [ ] Performance benchmarks
-- [ ] Production screenshots
-- [ ] Trade-offs and known limitations documentation
-
-## Engineering Focus
-
-This project is intentionally designed to demonstrate:
-
-- backend architecture
-- API design
-- database modelling
-- authentication and authorization
-- security hardening
-- observability
-- test isolation
-- type safety
-- container hardening
-- CI enforcement
-- production-oriented engineering practices
-- cloud-ready architecture
+- [x] User-isolated backend domain
+- [x] Functional React MVP
+- [x] Automatic schema migration and verification
+- [x] HTTPS AWS ingress
+- [x] Protected, low-cardinality metrics
+- [x] Limited runtime database role
+- [x] Backend, frontend, Terraform, and Docker CI
+- [x] Architecture, database, deployment, and ADR documentation
+- [ ] Frontend component and end-to-end tests
+- [ ] Refresh-token rotation and revocation
+- [ ] Remote Terraform state and locking
+- [ ] ECS autoscaling and Multi-AZ production profile
+- [ ] CloudWatch dashboards and alarms
+- [ ] Performance and load-test evidence
 
 ## Author
 
-**Ricardo Porto**
-
-GitHub: [@ricardoportoIE](https://github.com/ricardoportoIE)
+Ricardo Porto — [GitHub](https://github.com/ricardoportoIE)
