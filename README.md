@@ -80,7 +80,7 @@ Detailed documentation:
 
 ## Run locally
 
-### 1. Backend and PostgreSQL
+### Complete container stack
 
 Copy the backend environment template:
 
@@ -88,24 +88,31 @@ Copy the backend environment template:
 cp .env.example .env
 ```
 
-Start the stack:
+Start PostgreSQL, the backend, and the Nginx-served frontend:
 
 ```bash
 docker compose up --build
 ```
 
-The backend waits for PostgreSQL, acquires a migration lock, applies every Alembic migration, verifies the schema, and then starts Uvicorn.
+The backend waits for PostgreSQL, acquires a migration lock, applies every Alembic migration, verifies the schema, and then starts Uvicorn. The frontend waits for the backend healthcheck and proxies browser API calls over the private Compose network.
 
 Available endpoints:
 
 ```text
+Frontend:   http://localhost:5173
 API:        http://localhost:8000/api/v1
 Swagger:    http://localhost:8000/docs
 Readiness:  http://localhost:8000/ready
 Metrics:    http://localhost:8000/metrics
 ```
 
-### 2. Frontend
+Stop the complete stack without deleting database data:
+
+```bash
+docker compose down
+```
+
+### Frontend development mode
 
 ```bash
 cd frontend
@@ -114,7 +121,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`. Vite proxies `/api` requests to the containerized backend on port `8000`.
 
 The browser stores the access token in `sessionStorage`, so signing out or closing the tab removes the local session.
 
